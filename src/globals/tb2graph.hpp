@@ -161,7 +161,7 @@ private:
     // native adjacent lists, storing all edges possibly appears during search
     vector<vector<List_Node*> > adjlist;
 
-    // additional structure for speeding up traveral
+    // additional structure for speeding up traversal
     vector<Vertex*> vertexList;
 
     // potentials
@@ -216,14 +216,14 @@ public:
     // if tag = -1, increase the weight of the first edge in the adj. list
     bool increaseCost(int u, int v, Cost cost, int tag = NO_TAG);
 
-    // retur the weight list froom u to v with tag
+    // return the weight list from u to v with tag
     // if tag = -1, return all edges
     vector<Cost> getWeight(int u, int v, int tag = NO_TAG);
 
     // Check if any edges going from u to v exists
     bool edgeExist(int u, int v);
 
-    // retur the minimum weight froom all edges from u to v with tag
+    // return the minimum weight from all edges from u to v with tag
     // if tag = -1, consider all edges from u to v
     Cost getMinWeight(int u, int v, int tag = NO_TAG);
 
@@ -231,7 +231,7 @@ public:
     int size() const { return gsize; }
 
     // add a flow of flow value flowval starting from u to v following the
-    // shorteat path
+    // shortest path
     // if v and u is connected, the flow is also added to the edge (v,u)
     void addFlow(int u, int v, Cost flowval);
 
@@ -239,7 +239,7 @@ public:
     pair<int, Cost> minCostFlow(int s, int t);
 
     // add the flow from s to t following the shortest path which capacity is
-    // bounded by the capacaity between s and t (if any)
+    // bounded by the capacity between s and t (if any)
     // if can_change = true, augment the graph to the residual graph
     // return :
     // a pair <cost,exist>, where cost is the cost of the augmenting path,

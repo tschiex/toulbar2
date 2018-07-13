@@ -5,7 +5,6 @@
  */
 
 #include "tb2regular.hpp"
-#include "utils/tb2automaton.hpp"
 #include "search/tb2clusters.hpp"
 
 //--------------------------------------------------
@@ -35,11 +34,70 @@ ostream& operator<<(ostream& os, pair<U, T> const& p)
 
 }
 
-WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in,
-                                   int arity_in)
+bool DACCompare(const EnumeratedVariable* v1, const EnumeratedVariable* v2)
+{
+    return (v1->getDACOrder() < v2->getDACOrder());
+}
+
+
+// ---------------------------------------------------
+// ------------ The WRegular class -------------------
+// ---------------------------------------------------
+WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA &automaton)
     : AbstractNaryConstraint(wcsp, scope_in, arity_in)
     , lb(MIN_COST)
 {
+    // Copy the scope and DAC order it
+    DACScope.assign(scope_in,scope_in+arity_in);
+    sort(DACScope.begin(),DACScope.end(),DACCompare);
+
+    // Unroll the automata
+    // Only DFA for now: one initial state, one transition per value
+    if (automaton.getAcceptingStates().size() != 1) {
+        cerr << "Only single accepting states automata can be used with regular.\n";
+        exit(EXIT_FAILURE);
+    }
+    map<unsigned int, unsigned int> stateTranslate;
+    stateTranslate[automaton.getAcceptingStates()[0].first] = 0;
+    vector<unsigned int> stateRevTranslate;
+    stateRevTranslate.push_back(automaton.getAcceptingStates()[0].first);
+
+    Cost initialWeight = automaton.getAcceptingStates()[0].second;
+    vector<map<int,pair<int,Cost>>> transitions; //per state and value: target and weight
+    transitions.resize(automaton.getNbStates());
+    for (const auto &transition : automaton.getTransitions()) {
+        if (transitions[transition->start].find(transition->symbol) ==  transitions[transition->start].end())
+            transitions[transition->start][transition->symbol]= make_pair(transition->end,transition->weight);
+        else {
+            cerr << "Only deterministic automata can be used with regular.";
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    //Start layering
+    map<unsigned int, unsigned int> nextTranslate; // maps automaton states to nodeIdx in layer
+    vector<unsigned int> nextRevTranslate; // the other way around
+    // Refs to swap at each layer
+    map<unsigned int, unsigned int> &currentTranslateRef = stateTranslate;
+    map<unsigned int, unsigned int> &nextTranslateRef = nextTranslate;
+    vector<unsigned int> &currentRevTranslateRef = stateRevTranslate;
+    vector<unsigned int> &nextRevTranslateRef = nextRevTranslate;
+
+    for (unsigned int layer = 0; layer < DACScope.size(); layer ++){
+        unsigned int stateId = 0;
+        for (auto state : stateRevTranslate) {
+            // let's create layered nodes
+            for (const auto& transition : transitions[state]) {
+                unsigned int target = transition.second.first;
+                if (!nextTranslate.count(target)) // the target is unknown and must be mapped
+                    nextTranslate[target] = stateId++; 
+            }
+            // let's create arcs
+
+        }
+    }
+
+    // Init conflict weights
     for (int i = 0; i != arity_; ++i) {
         conflictWeights.push_back(0);
     }
@@ -78,8 +136,7 @@ void WRegular::assign(int idx)
     static const bool debug{false};
 
     if (debug)
-        cout << "After assign of " << idx << " state = \n"
-             << state{this} << "\n";
+        cout << "After assign of " << idx << "\n";
 }
 
 
@@ -88,7 +145,7 @@ void WRegular::remove(int idx)
     static const bool debug{false};
 
     if (debug)
-        cout << "In remove " << idx << " run = " << run << "\n";
+        cout << "In remove " << idx << endl;
 
 }
 
@@ -108,7 +165,7 @@ void WRegular::projectFromZero(int idx)
         return;
 
     if (debug)
-        cout << "In projectFromZero state = " << state{this} << "\n";
+        cout << "In projectFromZero " << "\n";
 
 }
 

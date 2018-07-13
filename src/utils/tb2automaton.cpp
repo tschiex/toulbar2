@@ -6,7 +6,7 @@ WFA::WFA()
 }
 
 WFA::WFA(int _nbStates)
-    : nbStates(_nbStates)
+    : nbStates(_nbStates), maxValue(0)
 {
 }
 WFA::WFA(istream& file)
@@ -44,6 +44,7 @@ WFA::WFA(istream& file)
         unsigned int start, end, symbol;
         Cost weight;
         file >> start >> symbol >> end >> weight;
+        maxValue = max(maxValue,symbol);
         //cout << "TRANS " << start << "x" <<  symbol << "-->" << end << " w= " << weight << endl;
         transitions.push_back(new WTransition(start, end, symbol, weight * ToulBar2::costMultiplier));
     }
@@ -74,6 +75,7 @@ WFA::WFA(int nbSymbols, string forbiddenPattern, Cost cost)
                     break;
                 }
             }
+            maxValue = max(maxValue,symbol);
             transitions.push_back(new WTransition(start, end, symbol, weight));
         }
     }
@@ -83,22 +85,18 @@ WFA::WFA(int nbSymbols, string forbiddenPattern, Cost cost)
 
 void WFA::display()
 {
-    cout << "Number of states = " << nbStates << endl;
-    cout << "Initial States : " << endl;
-    for (list<pair<int, Cost> >::iterator it = initialStates.begin(); it != initialStates.end(); it++) {
-        pair<int, int> initial = *it;
+    cout << "Number of states: " << nbStates << endl;
+    cout << "Initial States: " << endl;
+    for (const auto &initial : initialStates) 
         cout << initial.first << "(" << initial.second << ")" << endl;
-    }
-    cout << "Accepting States : " << endl;
-    for (list<pair<int, Cost> >::iterator it = acceptingStates.begin(); it != acceptingStates.end(); it++) {
-        pair<int, int> accepting = *it;
+
+    cout << "Accepting States: " << endl;
+    for (const auto &accepting : acceptingStates) 
         cout << accepting.first << "(" << accepting.second << ")" << endl;
-    }
-    cout << "Transition : " << endl;
-    for (list<WTransition*>::iterator it = transitions.begin(); it != transitions.end(); it++) {
-        WTransition* transition = *it;
+    
+    cout << "Transitions: " << endl;
+    for (const auto &transition : transitions) 
         transition->display();
-    }
 }
 
 /* Local Variables: */

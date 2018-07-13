@@ -303,9 +303,8 @@ void WeightedRegular::addToCostFunctionNetwork(WCSP* wcsp)
     //################################################initial state ##############################################
     if (automaton->getInitialStates().size() > 0) {
         vector<Cost> initial_states_costs(automaton->getNbStates(), top);
-        list<pair<int, Cost> > initialStates = automaton->getInitialStates();
-        for (list<pair<int, Cost> >::iterator it = initialStates.begin(); it != initialStates.end(); ++it) {
-            pair<int, Cost> initial = *it;
+        vector<pair<int, Cost> > initialStates = automaton->getInitialStates();
+        for (auto const & initial : initialStates) {
             //cout << initial.first << " " << initial.second << endl;
             initial_states_costs[initial.first] = initial.second;
         }
@@ -331,11 +330,10 @@ void WeightedRegular::addToCostFunctionNetwork(WCSP* wcsp)
         cout << "DEBUG>> wregular Final number of variables : " << wcsp->numberOfVariables() << endl;
     vector<Cost> final_states_costs(automaton->getNbStates(), top);
 
-    list<pair<int, Cost> > acceptingStates = automaton->getAcceptingStates();
+    vector<pair<int, Cost> > acceptingStates = automaton->getAcceptingStates();
     if (acceptingStates.size() > 0) {
 
-        for (list<pair<int, Cost> >::iterator it = acceptingStates.begin(); it != acceptingStates.end(); ++it) {
-            pair<int, Cost> accept = *it;
+        for (auto const accept : acceptingStates) {
             int unsigned t_index = accept.first;
             Cost ucost = accept.second;
 
@@ -410,9 +408,8 @@ void WeightedRegular::addToCostFunctionNetwork(WCSP* wcsp)
         unsigned long Domsize = long(Qi->getDomainInitSize() * Xi->getDomainInitSize() * Qj->getDomainInitSize());
 
         vector<Cost> tmp_ternary_costs(Domsize, top);
-        list<WTransition*> transitions = automaton->getTransitions();
-        for (list<WTransition*>::iterator it = transitions.begin(); it != transitions.end(); ++it) {
-            WTransition* transition = *it;
+        vector<WTransition*> transitions = automaton->getTransitions();
+        for (auto const &transition : transitions) {
             int start = transition->start;
             int end = transition->end;
             unsigned int symbol = transition->symbol;
