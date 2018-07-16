@@ -74,6 +74,11 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA 
         }
     }
 
+    // map of final states to prune / weight last layer 
+    map <int,Cost> finalStates;
+    for (auto accepting : automaton.getAcceptingStates())
+        finalStates[accepting.first] = accepting.second;
+    
     //Start layering
     map<unsigned int, unsigned int> nextTranslate; // maps automaton states to nodeIdx in layer
     vector<unsigned int> nextRevTranslate; // the other way around
@@ -82,20 +87,49 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA 
     map<unsigned int, unsigned int> &nextTranslateRef = nextTranslate;
     vector<unsigned int> &currentRevTranslateRef = stateRevTranslate;
     vector<unsigned int> &nextRevTranslateRef = nextRevTranslate;
+    // variables starting with "a/u" are resp. automaton/unrolled automaton states.
+    // second letter may be c or n for current/next layer
+    // Translate got from a to u, RevTranslate from u to a
+
+    // allocate for all layers
+    allArcs.resize(DACScope.size());
+    outDegrees.resize(DACScope.size());
 
     for (unsigned int layer = 0; layer < DACScope.size(); layer ++){
-        unsigned int stateId = 0;
-        for (auto state : stateRevTranslate) {
-            // let's create layered nodes
-            for (const auto& transition : transitions[state]) {
-                unsigned int target = transition.second.first;
-                if (!nextTranslate.count(target)) // the target is unknown and must be mapped
-                    nextTranslate[target] = stateId++; 
-            }
-            // let's create arcs
+        unsigned int unStateId = 0;
+        // allocate for all layer states
+        allArcs[layer].resize(stateRevTranslate.size());
+        outDegrees[layer].resize(stateRevTranslate.size());
+        for (unsigned int ucState = 0; ucState < stateRevTranslate.size();  ucState++) {
+            unsigned int acState = currentRevTranslateRef[ucState];
+            // allocate for all symbols/values: use domain size
+            allArcs[layer][ucState].resize(DACScope[layer]->getDomainInitSize());
 
+            for (const auto& transition : transitions[acState]) {
+                unsigned int anTarget = transition.second.first;
+                if (layer != DACScope.size()-1 || finalStates.count(anTarget)) { // last layer: prune with accepting states
+                    if (!nextTranslate.count(anTarget)) // the target is unknown and must be mapped
+                        nextTranslateRef[anTarget] = unStateId++; 
+                    // let's create arcs
+                    unsigned int unTarget =  nextTranslateRef[anTarget]; // get the target's id in the new layer
+                    Cost arcWeight = transition.second.second;
+                    if (layer == 0) arcWeight += initialWeight;
+                    if (layer == DACScope.size()-1 && finalStates.count(anTarget))
+                        arcWeight += finalStates[anTarget];
+                    Arc* myArc = new Arc(layer,ucState,transition.first,transition.second.second,unTarget);
+                    allArcs[layer][ucState][transition.first] = myArc;
+                }
+            }
         }
+        // all states done, lets update translators: clear current and swap
+        currentTranslateRef.clear();
+        currentRevTranslateRef.clear();
+        swap(currentTranslateRef, nextTranslateRef);
+        swap(currentRevTranslateRef, nextRevTranslateRef);
     }
+
+    // Now we should clean states with no successors (last layer done)
+    // TODO
 
     // Init conflict weights
     for (int i = 0; i != arity_; ++i) {

@@ -18,7 +18,6 @@
         - the arc has a value and a weight (Cost)
         - the arc can become inactive if it belongs to no feasible path, will be removed from the list of active arcs
     - All arcs are accessible per layer/nodeidx/value (not backtrackable)
-    - All arcs are accessible by layer and nodeidx (not backtrackable)
     - Backtrackabkle degrees can be stored in side vectors (in/out) if needed
     - We have a vector of backtrackable lists of arcs per layer/value that plays the role of the Qij (reverse?)
 */
@@ -31,13 +30,12 @@ public:
     ~WRegular();
 
     struct Arc {
-        Arc(int layer, int source, int value, Cost weight, int target);
-        int layer; // index to the variable associated in arc in the DAC order
+        Arc(int layer, int source, int value, Cost weight, int target): layer(layer), source(source), target(target), value(value), weight(weight) {}
+        int layer; // index to the variable associated in arc in the DAC order. Useful ?
         int source;
-        int target;  // backtrackable?
+        int target;  
         Value value; // value associated with arc
         Cost weight;
-        bool active;// in Qlayer/value
 
         int get_source();
         int get_target();
@@ -75,7 +73,7 @@ public:
     void incConflictWeight(Constraint *from) override {
         //assert(fromElim1==NULL);
         //assert(fromElim2==NULL);
-        if (from==this) {
+        if (from == this) {
             Constraint::incConflictWeight(1);
         } else if (deconnected()) {
             for (int i=0; i<from->arity(); i++) {
@@ -93,7 +91,8 @@ public:
 
     private:
     vector<EnumeratedVariable*> DACScope;
-    vector<vector<vector<Arc*>>> allArcs; // For each layer/source-node/value
+    vector<vector<vector<Arc*>>> allArcs; // For each layer/usource/value
+    vector<vector<int>> outDegrees; // for a node at given layer and nodeid
 
     vector<vector<BTList<Arc>>> arcsAtLayerValue; /* arcs in feasible paths in a given layer/value: better than Qij ? */
     StoreCost lb;         // amount we have already projected to c_zero
