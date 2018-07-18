@@ -1,6 +1,9 @@
 #ifndef TB2REG_HPP_
 #define TB2REG_HPP_
 
+#include "tb2types.hpp"
+#include "utils/tb2store.hpp"
+#include "utils/tb2btlist.hpp"
 #include "tb2abstractconstr.hpp"
 #include "tb2ternaryconstr.hpp"
 #include "tb2enumvar.hpp"
@@ -8,7 +11,7 @@
 #include "utils/tb2automaton.hpp"
 
 /* 
-  Includes a structure to describe an unrolled automaton anfd enforce local consistencies incrementally
+  Includes a structure to describe an unrolled automaton and enforce local consistencies incrementally
   This is a layered weighted acyclic DAG with one layer per variable in the scope.
   Targeted structure: 
      - layers numbered from 0, DAC order
@@ -18,20 +21,21 @@
         - the arc has a value and a weight (Cost)
         - the arc can become inactive if it belongs to no feasible path, will be removed from the list of active arcs
     - All arcs are accessible per layer/nodeidx/value (not backtrackable)
-    - Backtrackabkle degrees can be stored in side vectors (in/out) if needed
+    - Backtrackable degrees can be stored in side vectors (in/out) if needed
     - We have a vector of backtrackable lists of arcs per layer/value that plays the role of the Qij (reverse?)
 */
 
 class WRegular : public AbstractNaryConstraint
 {
 public:
-    WRegular(WCSP *wcsp, EnumeratedVariable **scope_in, int arity_in, WFA &automata);
+    WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, Cost weight);
+    WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istream& file); // to test the above
+    WRegular(WCSP *wcsp, EnumeratedVariable **scope_in, int arity_in, WFA& automata);
     //WRegular(WCSP *wcsp, EnumeratedVariable **scope_in, int arity_in), sequence, distance, matrix);
-    ~WRegular();
+       ~WRegular();
 
     struct Arc {
-        Arc(int layer, int source, int value, Cost weight, int target): layer(layer), source(source), target(target), value(value), weight(weight) {}
-        int layer; // index to the variable associated in arc in the DAC order. Useful ?
+        Arc(int source, int value, Cost weight, int target): source(source), target(target), value(value), weight(weight) {}
         int source;
         int target;  
         Value value; // value associated with arc
@@ -39,18 +43,16 @@ public:
 
         int get_source();
         int get_target();
-        int get_weight();
+        Value get_value();
+        Cost get_weight();
     };
+    typedef int ArcRef;
 
     int get_width();
-    int get_layer_width(int layer);
-    int get_layer_num();
+    int get_layer_width(int layer) {return layerWidth[layer]; }
+    int get_layer_num() {return DACScope.size(); }
     int get_arc_num();
 
-    Arc* get_arc(int layer, int source, Value value) {
-        // asserts!
-        return allArcs[layer][source][value];
-    }
 
     void read(istream& file);
 
@@ -90,19 +92,24 @@ public:
     std::ostream& printstate(std::ostream& os);
 
     private:
+    vector<EnumeratedVariable*> Scope;
     vector<EnumeratedVariable*> DACScope;
-    vector<vector<vector<Arc*>>> allArcs; // For each layer/usource/value
-    vector<vector<int>> outDegrees; // for a node at given layer and nodeid
+    vector<int> layerWidth; //number of nodes at each layer
+    vector<vector<Arc>> allArcs; // Arcs for each layer, increasing nodeidx
+    vector<vector<int>> degrees; // for a node at given layer and nodeidx
 
-    vector<vector<BTList<Arc>>> arcsAtLayerValue; /* arcs in feasible paths in a given layer/value: better than Qij ? */
+    vector<vector<BTListWrapper<ArcRef>>> arcsAtLayerValue; /* arcs in feasible paths in a given layer/value (int is arc index in allArcs): better than Qij ? */
     StoreCost lb;         // amount we have already projected to c_zero
     vector<vector<StoreCost>> delta; // one per variable and value
     vector<vector<StoreCost>> alpha; // shortest path length from source to layer/node for AC
     vector<vector<StoreCost>> alphap; // shortest path length from source to layer/node with unaries for DAC
     vector<vector<StoreCost>> beta; // shortest path length from sink to layer/node for AC
+    vector<vector<StoreCost>> betap; // shortest path length from source to layer/node with unaries for DAC
+
     vector<vector<StoreInt>> Pred; // nodeidx of the previous state that gives alpha (or is the arc more useful?)
     vector<vector<StoreInt>> Predp; // nodeidx of the previous state that gives alphap (or is the arc more useful?)
     vector<vector<StoreInt>> Succ; // nodeidx of the next state that gives beta (or is the arc more useful?)
+    vector<vector<StoreInt>> Succp; // nodeidx of the next state that gives beta (or is the arc more useful?)
 };
 
 #endif /* TB2REG_HPP_ */

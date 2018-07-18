@@ -33,6 +33,7 @@
 #include "globals/tb2maxconstr.hpp"
 #include "tb2clause.hpp"
 #include "tb2clqcover.hpp"
+#include "tb2regular.hpp"
 
 /*
  * Global variables with their default value
@@ -1123,6 +1124,25 @@ int WCSP::postCliqueConstraint(int* scopeIndex, int arity, istream& file)
         cc->propagate();
     }
     return cc->wcspIndex;
+}
+
+int WCSP::postMDDCostFunction(int* scopeIndex, int arity, istream& file)
+{
+#ifndef NDEBUG
+    for (int i = 0; i < arity; i++)
+        for (int j = i + 1; j < arity; j++)
+            assert(scopeIndex[i] != scopeIndex[j]);
+#endif
+    vector<EnumeratedVariable*> scopeVars(arity);
+    for (int i = 0; i < arity; i++)
+        scopeVars[i] = (EnumeratedVariable*)vars[scopeIndex[i]];
+    auto MDDCf = new WRegular(this, scopeVars.data(), arity, file);
+    if (isDelayedNaryCtr)
+        delayedNaryCtr.push_back(MDDCf->wcspIndex);
+    else {
+        MDDCf->propagate();
+    }
+    return MDDCf->wcspIndex;
 }
 
 // only DAG-based or network-based propagator

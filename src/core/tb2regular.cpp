@@ -43,10 +43,63 @@ bool DACCompare(const EnumeratedVariable* v1, const EnumeratedVariable* v2)
 // ---------------------------------------------------
 // ------------ The WRegular class -------------------
 // ---------------------------------------------------
-WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA &automaton)
+
+// A first naive creator that allows everything with constant transition cost 
+WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, Cost weight)
     : AbstractNaryConstraint(wcsp, scope_in, arity_in)
     , lb(MIN_COST)
 {
+   // Copy the scope and DAC order it
+    Scope.assign(scope_in,scope_in+arity_in);
+    DACScope.assign(scope_in,scope_in+arity_in);
+    sort(DACScope.begin(),DACScope.end(),DACCompare);
+
+    // Create a simple set of arcs that allows all values at each layer
+    for (int layer = 0; layer < get_layer_num(); layer++){
+        layerWidth.push_back(1); // one node
+        int arcRef = 0;
+        for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
+            Arc newArc(0,val,weight,0);
+            allArcs[layer].push_back(newArc);
+            arcsAtLayerValue[layer][val].push_back(arcRef);
+            arcRef++;
+        }
+    }
+    layerWidth.push_back(1); // one node on the last layer too
+}
+
+WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istream& file)
+    : AbstractNaryConstraint(wcsp, scope_in, arity_in)
+    , lb(MIN_COST)
+{
+    Cost weight;
+    file >> weight;
+
+   // Copy the scope and DAC order it
+    Scope.assign(scope_in,scope_in+arity_in);
+    DACScope.assign(scope_in,scope_in+arity_in);
+    sort(DACScope.begin(),DACScope.end(),DACCompare);
+
+    // Create a simple set of arcs that allows all values at each layer
+    for (int layer = 0; layer < get_layer_num(); layer++){
+        layerWidth.push_back(1); // one node
+        int arcRef = 0;
+        for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
+            Arc newArc(0,val,weight,0);
+            allArcs[layer].push_back(newArc);
+            arcsAtLayerValue[layer][val].push_back(arcRef);
+            arcRef++;
+        }
+    }
+    layerWidth.push_back(1); // one node on the last layer too
+}
+
+    WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA& automaton)
+    : AbstractNaryConstraint(wcsp, scope_in, arity_in)
+    , lb(MIN_COST)
+{
+    // Useless, should be in super class ?
+    Scope.assign(scope_in,scope_in+arity_in);
     // Copy the scope and DAC order it
     DACScope.assign(scope_in,scope_in+arity_in);
     sort(DACScope.begin(),DACScope.end(),DACCompare);
@@ -93,21 +146,19 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA 
 
     // allocate for all layers
     allArcs.resize(DACScope.size());
-    outDegrees.resize(DACScope.size());
+    degrees.resize(DACScope.size()+1);
 
     for (unsigned int layer = 0; layer < DACScope.size(); layer ++){
         unsigned int unStateId = 0;
+        ArcRef arcIdx = 0;
         // allocate for all layer states
-        allArcs[layer].resize(stateRevTranslate.size());
-        outDegrees[layer].resize(stateRevTranslate.size());
+        degrees[layer].resize(stateRevTranslate.size());
         for (unsigned int ucState = 0; ucState < stateRevTranslate.size();  ucState++) {
             unsigned int acState = currentRevTranslateRef[ucState];
-            // allocate for all symbols/values: use domain size
-            allArcs[layer][ucState].resize(DACScope[layer]->getDomainInitSize());
 
             for (const auto& transition : transitions[acState]) {
                 unsigned int anTarget = transition.second.first;
-                if (layer != DACScope.size()-1 || finalStates.count(anTarget)) { // last layer: prune with accepting states
+                if (layer < DACScope.size()-1 || finalStates.count(anTarget)) { // last layer: prune with accepting states
                     if (!nextTranslate.count(anTarget)) // the target is unknown and must be mapped
                         nextTranslateRef[anTarget] = unStateId++; 
                     // let's create arcs
@@ -116,8 +167,11 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA 
                     if (layer == 0) arcWeight += initialWeight;
                     if (layer == DACScope.size()-1 && finalStates.count(anTarget))
                         arcWeight += finalStates[anTarget];
-                    Arc* myArc = new Arc(layer,ucState,transition.first,transition.second.second,unTarget);
-                    allArcs[layer][ucState][transition.first] = myArc;
+                    Arc myArc(ucState,transition.first,transition.second.second,unTarget);
+                    allArcs[layer].push_back(myArc);
+                    // TODO push in the active arcs at layer/value
+                    arcsAtLayerValue[layer][transition.first].push_back(arcIdx);
+                    arcIdx++;
                 }
             }
         }
@@ -128,9 +182,11 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA 
         swap(currentRevTranslateRef, nextRevTranslateRef);
     }
 
-    // Now we should clean states with no successors (last layer done)
-    // TODO
+    // Now we should clean states with no successors
+    // to be put in a separate method later (useful for various creators)
+    for (unsigned int layer = DACScope.size()-1; layer >= 0; layer--) {
 
+    }
     // Init conflict weights
     for (int i = 0; i != arity_; ++i) {
         conflictWeights.push_back(0);

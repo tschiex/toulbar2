@@ -16,6 +16,7 @@
 
 #include "tb2store.hpp"
 
+// One cell of a doubly linked list of <T>
 template <class T>
 class DLink {
 public:
@@ -33,6 +34,8 @@ public:
     }
 };
 
+// A backtrackable doubly linked list with a store stack
+// that remembers which DLink cell must be restored where
 template <class T>
 class BTList {
     StoreStack<BTList, DLink<T>*>* storeUndo;
@@ -249,6 +252,100 @@ void StoreStack<T, V>::restore(BTList<Q>** l, DLink<Q>** elt, ptrdiff_t& x)
         x--;
     }
 }
+
+// BTList Wrapper for easier usage
+template <typename T>
+class DLinkStore {
+private:
+    int blkSize;
+    StoreInt curEmpty;
+    StoreInt curUsingBlkIndex;
+    vector<DLink<T>*> blockStore;
+
+public:
+    DLinkStore(int blkSize_)
+        : blkSize(blkSize_)
+        , curEmpty(0)
+        , curUsingBlkIndex(0)
+    {
+        blockStore.push_back(new DLink<T>[blkSize]);
+    }
+    ~DLinkStore()
+    {
+        for (vector<DLink<int>*>::iterator it = blockStore.begin();
+             it != blockStore.end(); it++) {
+            delete[] * it;
+        }
+        blockStore.clear();
+    }
+
+    DLink<T>* allocate(const T& ele)
+    {
+        if (curEmpty >= blkSize) {
+            curEmpty = 0;
+            curUsingBlkIndex = curUsingBlkIndex + 1;
+            if (curUsingBlkIndex >= (int)blockStore.size()) {
+                blockStore.push_back(new DLink<T>[blkSize]);
+            }
+        }
+        DLink<int>* container = &(blockStore[curUsingBlkIndex][curEmpty]);
+        container->content = ele;
+        curEmpty = curEmpty + 1;
+        return container;
+    }
+};
+
+template <typename T>
+class BTListWrapper {
+private:
+    BTList<T> list;
+    DLinkStore<T>* dlinkStore;
+
+public:
+    typedef typename BTList<T>::iterator iterator;
+
+    BTListWrapper(DLinkStore<int>* dlinkStore)
+        : list(&Store::storeIndexList)
+        , dlinkStore(dlinkStore)
+    {
+    }
+
+    ~BTListWrapper() {}
+
+    size_t size()
+    {
+        return list.getSize();
+    }
+    bool empty()
+    {
+        return list.getSize() == 0;
+    }
+    void push_back(const T& ele)
+    {
+        DLink<T>* container = dlinkStore->allocate(ele);
+        list.push_back(container, true);
+    }
+    void remove(const T& ele)
+    {
+        DLink<T>* target = NULL;
+        for (typename BTList<T>::iterator it = list.begin(); it != list.end()
+             && (target == NULL);
+             ++it) {
+            if (*it == ele) {
+                target = it.getElt();
+            }
+        }
+        if (target != NULL) {
+            list.erase(target, true);
+        }
+    }
+    void erase(iterator& it)
+    {
+        list.erase(it.getElt(), true);
+    }
+    iterator begin() { return list.begin(); }
+    iterator end() { return list.end(); }
+};
 
 #endif /*TB2BTLIST_HPP_*/
 

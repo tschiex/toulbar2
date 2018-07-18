@@ -56,9 +56,9 @@ template <class T, class V>
 class StoreStack {
     T** pointers;
     V* content;
-    ptrdiff_t index;
-    ptrdiff_t indexMax;
-    ptrdiff_t base;
+    ptrdiff_t index;    // stack pointer
+    ptrdiff_t indexMax; // stack top (realloc if reached)
+    ptrdiff_t base;     // frame pointer that will point to the previous frame (world)
 
     // make it private because we don't want copy nor assignment
     StoreStack(const StoreStack& s);
@@ -132,6 +132,7 @@ public:
         }
     }
 
+    // Store y to be restored at x
     void store(T* x, V y)
     {
         if (index > 0) {
@@ -143,6 +144,7 @@ public:
         }
     }
 
+    // Store *x to be restored at x
     void store(T* x)
     {
         if (index > 0) {
@@ -154,6 +156,7 @@ public:
         }
     }
 
+    // Save current frame pointer on stack and link in frame pointer
     void store()
     {
         index++;
@@ -186,6 +189,7 @@ public:
     template <class Q>
     void restore(BTList<Q>** l, DLink<Q>** elt, ptrdiff_t& x);
 
+    // restore everything down to the previous frame pointer (and restore it too)
     void restore()
     {
         if (index > 0) { // do nothing if already at depth = 0

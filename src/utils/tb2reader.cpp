@@ -1293,6 +1293,7 @@ void CFNStreamReader::readGlobalCostFunction(vector<int>& scope, const string& f
         { "MST", "" },
         { "smstdp", "" },
         { "wregular", ":nb_states:N:starts:[NC]+:ends:[NC]+:transitions:[NvNC]+" },
+        { "mdd", ":defaultcost:C"},
         { "walldiff", ":metric:K:cost:c" },
         { "wgcc", ":metric:K:cost:c:bounds:[vNN]+" },
         { "wsame", ":metric:K:cost:c" },
@@ -1328,6 +1329,8 @@ void CFNStreamReader::readGlobalCostFunction(vector<int>& scope, const string& f
                 cerr << "Error: the clique global constraint does not accept RHS different from 1 for now at line" << line << endl;
                 exit(EXIT_FAILURE);
             }
+        } else if (funcName == "mdd") {
+            this->wcsp->postMDDCostFunction(scopeArray, arity, paramsStream);
         } else { // monolithic
             int nbconstr; // unused int for pointer ref
             this->wcsp->postGlobalConstraint(scopeArray, arity, funcName, paramsStream, &nbconstr, false);
