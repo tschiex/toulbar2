@@ -47,6 +47,7 @@ bool DACCompare(const EnumeratedVariable* v1, const EnumeratedVariable* v2)
 // A first naive creator that allows everything with constant transition cost 
 WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, Cost weight)
     : AbstractNaryConstraint(wcsp, scope_in, arity_in)
+    , intDLinkStore(arity_in * 10) // TODO something less naive would be good
     , lb(MIN_COST)
 {
    // Copy the scope and DAC order it
@@ -56,21 +57,25 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, Cost
 
     // Create a simple set of arcs that allows all values at each layer
     for (int layer = 0; layer < get_layer_num(); layer++){
+        conflictWeights.push_back(0);
         layerWidth.push_back(1); // one node
-        int arcRef = 0;
+        ArcRef arcIdx = 0;
         for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
             Arc newArc(0,val,weight,0);
             allArcs[layer].push_back(newArc);
-            arcsAtLayerValue[layer][val].push_back(arcRef);
-            arcRef++;
+            arcsAtLayerValue[layer][val].push_back(arcIdx);
+            arcIdx++;
         }
     }
     layerWidth.push_back(1); // one node on the last layer too
 }
 
+// The same one from a Cost in a file
 WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istream& file)
     : AbstractNaryConstraint(wcsp, scope_in, arity_in)
+    , intDLinkStore(arity_in * 10) // TODO something less naive would be good
     , lb(MIN_COST)
+
 {
     Cost weight;
     file >> weight;
@@ -80,22 +85,28 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     DACScope.assign(scope_in,scope_in+arity_in);
     sort(DACScope.begin(),DACScope.end(),DACCompare);
 
+    allArcs.resize(get_layer_num());
+    arcsAtLayerValue.resize(get_layer_num());
+
     // Create a simple set of arcs that allows all values at each layer
     for (int layer = 0; layer < get_layer_num(); layer++){
+        conflictWeights.push_back(0);
         layerWidth.push_back(1); // one node
         int arcRef = 0;
+        arcsAtLayerValue[layer].resize(DACScope[layer]->getDomainInitSize(),&intDLinkStore);
         for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
-            Arc newArc(0,val,weight,0);
-            allArcs[layer].push_back(newArc);
+            allArcs[layer].push_back(Arc(0,val,weight,0));
             arcsAtLayerValue[layer][val].push_back(arcRef);
             arcRef++;
         }
     }
-    layerWidth.push_back(1); // one node on the last layer too
+    layerWidth.push_back(1); // one node on the last nodes layer too
 }
 
+// This one needs to be finished. may be a cleanDanglingNodes method outside of it would be better.
     WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA& automaton)
     : AbstractNaryConstraint(wcsp, scope_in, arity_in)
+    , intDLinkStore(arity_in * 10) // TODO something less naive would be good
     , lb(MIN_COST)
 {
     // Useless, should be in super class ?
@@ -151,6 +162,7 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     for (unsigned int layer = 0; layer < DACScope.size(); layer ++){
         unsigned int unStateId = 0;
         ArcRef arcIdx = 0;
+        conflictWeights.push_back(0);
         // allocate for all layer states
         degrees[layer].resize(stateRevTranslate.size());
         for (unsigned int ucState = 0; ucState < stateRevTranslate.size();  ucState++) {
@@ -259,15 +271,9 @@ void WRegular::projectFromZero(int idx)
 
 }
 
-
 double WRegular::computeTightness()
 {
     return 1.0;
-}
-
-void WRegular::read(istream& is)
-{
-
 }
 
 /* Local Variables: */

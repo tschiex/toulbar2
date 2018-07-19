@@ -54,8 +54,6 @@ public:
     int get_arc_num();
 
 
-    void read(istream& file);
-
     bool extension() const FINAL { return false; }
 
     void assign(int idx) override;
@@ -98,6 +96,7 @@ public:
     vector<vector<Arc>> allArcs; // Arcs for each layer, increasing nodeidx
     vector<vector<int>> degrees; // for a node at given layer and nodeidx
 
+    DLinkStore<int> intDLinkStore; // for the BTList below
     vector<vector<BTListWrapper<ArcRef>>> arcsAtLayerValue; /* arcs in feasible paths in a given layer/value (int is arc index in allArcs): better than Qij ? */
     StoreCost lb;         // amount we have already projected to c_zero
     vector<vector<StoreCost>> delta; // one per variable and value
