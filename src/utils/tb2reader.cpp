@@ -1293,7 +1293,7 @@ void CFNStreamReader::readGlobalCostFunction(vector<int>& scope, const string& f
         { "MST", "" },
         { "smstdp", "" },
         { "wregular", ":nb_states:N:starts:[NC]+:ends:[NC]+:transitions:[NvNC]+" },
-        { "mdd", ":cost:c:above:N:distance:N:label:[v]S"},
+        { "mdd", ":cost:c:above:N:distance:N:label:[v]S" },
         { "walldiff", ":metric:K:cost:c" },
         { "wgcc", ":metric:K:cost:c:bounds:[vNN]+" },
         { "wsame", ":metric:K:cost:c" },
@@ -1721,10 +1721,9 @@ void CFNStreamReader::generateGCFStreamFromTemplate(vector<int>& scope, const st
     // Correct for negative costs
     if (funcType == "wregular") { // regular: we can handle all costs. The number of transitions is known and we have one start and end state
         wcsp->negCost -= ((scope.size() + 2) * minCost); // TODO we could do better and compute different mins for initial/final/transitions.
-//    } else if (funcType == "mdd") {
-//        wcsp->negCost -= (scope.size() * minCost);
-    }
-    else
+        //    } else if (funcType == "mdd") {
+        //        wcsp->negCost -= (scope.size() * minCost);
+    } else
         wcsp->negCost -= minCost;
 
     // STREAM DEBUG

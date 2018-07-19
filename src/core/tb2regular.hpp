@@ -25,33 +25,37 @@
     - We have a vector of backtrackable lists of arcs per layer/value that plays the role of the Qij (reverse?)
 */
 
-class WRegular : public AbstractNaryConstraint
-{
+class WRegular : public AbstractNaryConstraint {
 public:
     WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istream& file); // to test the above
-    WRegular(WCSP *wcsp, EnumeratedVariable **scope_in, int arity_in, WFA& automata);
+    WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA& automata);
     //WRegular(WCSP *wcsp, EnumeratedVariable **scope_in, int arity_in), sequence, distance, matrix);
-       ~WRegular();
+    ~WRegular();
 
     struct Arc {
-        Arc(int source, int value, Cost weight, int target): source(source), target(target), value(value), weight(weight) {}
+        Arc(int source, int value, Cost weight, int target)
+            : source(source)
+            , target(target)
+            , value(value)
+            , weight(weight)
+        {
+        }
         int source;
-        int target;  
+        int target;
         Value value; // value associated with arc
         Cost weight;
 
-        int get_source() {return source;};
-        int get_target();
-        Value get_value();
-        Cost get_weight() {return weight;};
+        int get_source() { return source; };
+        int get_target() { return target; };
+        Value get_value() { return value; };
+        Cost get_weight() { return weight; };
     };
     typedef int ArcRef;
 
     int get_width();
-    int get_layer_width(int layer) {return layerWidth[layer]; }
-    int get_layer_num() {return DACScope.size(); }
+    int get_layer_width(int layer) { return layerWidth[layer]; }
+    int get_layer_num() { return DACScope.size(); }
     int get_arc_num();
-
 
     bool extension() const FINAL { return false; }
 
@@ -63,19 +67,25 @@ public:
 
     void propagate() override;
 
-    Cost eval( const String& s ) override;
+    Cost eval(const String& s) override;
 
-    vector<Long> conflictWeights;   // used by weighted degree heuristics
-    Long getConflictWeight(int varIndex) const override {assert(varIndex>=0);assert(varIndex<arity_);return conflictWeights[varIndex]+Constraint::getConflictWeight();}
-    void incConflictWeight(Constraint *from) override {
+    vector<Long> conflictWeights; // used by weighted degree heuristics
+    Long getConflictWeight(int varIndex) const override
+    {
+        assert(varIndex >= 0);
+        assert(varIndex < arity_);
+        return conflictWeights[varIndex] + Constraint::getConflictWeight();
+    }
+    void incConflictWeight(Constraint* from) override
+    {
         //assert(fromElim1==NULL);
         //assert(fromElim2==NULL);
         if (from == this) {
             Constraint::incConflictWeight(1);
         } else if (deconnected()) {
-            for (int i=0; i<from->arity(); i++) {
+            for (int i = 0; i < from->arity(); i++) {
                 int index = getIndex(from->getVar(i));
-                if (index>=0) { // the last conflict constraint may be derived from two binary constraints (boosting search), each one derived from an n-ary constraint with a scope which does not include parameter constraint from
+                if (index >= 0) { // the last conflict constraint may be derived from two binary constraints (boosting search), each one derived from an n-ary constraint with a scope which does not include parameter constraint from
                     assert(index < arity_);
                     conflictWeights[index]++;
                 }
@@ -87,26 +97,26 @@ public:
     std::ostream& printLayers(std::ostream& os);
     std::ostream& printstate(std::ostream& os);
 
-    private:
+private:
     vector<EnumeratedVariable*> Scope;
     vector<EnumeratedVariable*> DACScope;
     vector<int> layerWidth; //number of nodes at each layer
-    vector<vector<Arc>> allArcs; // Arcs for each layer, increasing nodeidx
-    vector<vector<int>> degrees; // for a node at given layer and nodeidx
+    vector<vector<Arc> > allArcs; // Arcs for each layer, increasing nodeidx
+    vector<vector<int> > degrees; // for a node at given layer and nodeidx
 
     DLinkStore<int> intDLinkStore; // for the BTList below
-    vector<vector<BTListWrapper<ArcRef>>> arcsAtLayerValue; /* arcs in feasible paths in a given layer/value (int is arc index in allArcs): better than Qij ? */
-    StoreCost lb;         // amount we have already projected to c_zero
-    vector<vector<StoreCost>> delta; // one per variable and value
-    vector<vector<StoreCost>> alpha; // shortest path length from source to layer/node for AC
-    vector<vector<StoreCost>> alphap; // shortest path length from source to layer/node with unaries for DAC
-    vector<vector<StoreCost>> beta; // shortest path length from sink to layer/node for AC
-    vector<vector<StoreCost>> betap; // shortest path length from source to layer/node with unaries for DAC
+    vector<vector<BTListWrapper<ArcRef> > > arcsAtLayerValue; /* arcs in feasible paths in a given layer/value (int is arc index in allArcs): better than Qij ? */
+    StoreCost lb; // amount we have already projected to c_zero
+    vector<vector<StoreCost> > delta; // one per variable and value
+    vector<vector<StoreCost> > alpha; // shortest path length from source to layer/node for AC
+    vector<vector<StoreCost> > alphap; // shortest path length from source to layer/node with unaries for DAC
+    vector<vector<StoreCost> > beta; // shortest path length from sink to layer/node for AC
+    vector<vector<StoreCost> > betap; // shortest path length from source to layer/node with unaries for DAC
 
-    vector<vector<StoreInt>> Pred; // nodeidx of the previous state that gives alpha (or is the arc more useful?)
-    vector<vector<StoreInt>> Predp; // nodeidx of the previous state that gives alphap (or is the arc more useful?)
-    vector<vector<StoreInt>> Succ; // nodeidx of the next state that gives beta (or is the arc more useful?)
-    vector<vector<StoreInt>> Succp; // nodeidx of the next state that gives beta (or is the arc more useful?)
+    vector<vector<StoreInt> > Pred; // nodeidx of the previous state that gives alpha (or is the arc more useful?)
+    vector<vector<StoreInt> > Predp; // nodeidx of the previous state that gives alphap (or is the arc more useful?)
+    vector<vector<StoreInt> > Succ; // nodeidx of the next state that gives beta (or is the arc more useful?)
+    vector<vector<StoreInt> > Succp; // nodeidx of the next state that gives beta (or is the arc more useful?)
 };
 
 #endif /* TB2REG_HPP_ */
