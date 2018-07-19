@@ -1,0 +1,11 @@
+{  problem: {name: WRegular, mustbe: <21.0 }
+   variables: {v1: [a b] v2: [a b] v3: [a b] v4: [a b]}
+   functions: {
+     wr1 : { scope: [v1 v2 v4 v3]
+	     type :mdd 
+	     params: {
+		 defaultcost: 5.0
+	     }	
+	   }
+   }
+}
