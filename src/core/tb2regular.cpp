@@ -233,6 +233,28 @@ void WRegular::propagate()
  
 }
 
+Cost WRegular::eval( const String& s )
+{
+    Cost res = -lb;
+    int q = 0;
+    for (int i = 0; i < arity_; i++) {
+        BTListWrapper<ArcRef>::iterator it;
+        for(it = arcsAtLayerValue[i][s[i]].begin(); it != arcsAtLayerValue[i][s[i]].end(); ++it) {
+            if(allArcs[i][*it].get_source() == q){
+                break;
+            }
+        }
+        if(it == arcsAtLayerValue[i][s[i]].end())
+        {
+            return wcsp->getUb();
+        } else {
+            res += allArcs[i][*it].get_weight() + delta[i][s[i]];
+        }
+    }
+    assert(res >= MIN_COST);
+    return res;
+}
+
 void WRegular::assign(int idx)
 {
     static const bool debug{false};

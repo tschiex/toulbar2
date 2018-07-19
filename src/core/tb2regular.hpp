@@ -41,10 +41,10 @@ public:
         Value value; // value associated with arc
         Cost weight;
 
-        int get_source();
+        int get_source() {return source;};
         int get_target();
         Value get_value();
-        Cost get_weight();
+        Cost get_weight() {return weight;};
     };
     typedef int ArcRef;
 
@@ -64,9 +64,7 @@ public:
 
     void propagate() override;
 
-    Cost eval( const String& s ) override {
-         return MIN_COST;
-    }
+    Cost eval( const String& s ) override;
 
     vector<Long> conflictWeights;   // used by weighted degree heuristics
     Long getConflictWeight(int varIndex) const override {assert(varIndex>=0);assert(varIndex<arity_);return conflictWeights[varIndex]+Constraint::getConflictWeight();}
