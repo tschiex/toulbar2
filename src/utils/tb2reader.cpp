@@ -1721,7 +1721,10 @@ void CFNStreamReader::generateGCFStreamFromTemplate(vector<int>& scope, const st
     // Correct for negative costs
     if (funcType == "wregular") { // regular: we can handle all costs. The number of transitions is known and we have one start and end state
         wcsp->negCost -= ((scope.size() + 2) * minCost); // TODO we could do better and compute different mins for initial/final/transitions.
-    } else
+    } else if (funcType == "mdd") {
+        wcsp->negCost -= (scope.size() * minCost);
+    }
+    else
         wcsp->negCost -= minCost;
 
     // STREAM DEBUG
