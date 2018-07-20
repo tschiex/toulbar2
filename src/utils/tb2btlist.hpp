@@ -263,6 +263,8 @@ private:
     vector<DLink<T>*> blockStore;
 
 public:
+    typedef typename vector<DLink<T>*>::iterator iterator;
+
     DLinkStore(int blkSize_)
         : blkSize(blkSize_)
         , curEmpty(0)
@@ -293,6 +295,8 @@ public:
         curEmpty = curEmpty + 1;
         return container;
     }
+    iterator begin() { return blockStore.begin(); }
+    iterator end() { return blockStore.end(); }
 };
 
 template <typename T>
@@ -303,6 +307,7 @@ private:
 
 public:
     typedef typename BTList<T>::iterator iterator;
+    typedef typename vector<DLink<T>*>::iterator allIterator;
 
     BTListWrapper(DLinkStore<int>* dlinkStore)
         : list(&Store::storeIndexList)
@@ -345,6 +350,8 @@ public:
     }
     iterator begin() { return list.begin(); }
     iterator end() { return list.end(); }
+    allIterator allBegin() { return dlinkStore->begin(); }
+    allIterator allEnd() { return dlinkStore->end(); }
 };
 
 #endif /*TB2BTLIST_HPP_*/
