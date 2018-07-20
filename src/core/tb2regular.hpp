@@ -27,7 +27,6 @@
 
 class WRegular : public AbstractNaryConstraint {
 public:
-    WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, Cost weight);
     WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istream& file); // to test the above
     WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA& automata);
     //WRegular(WCSP *wcsp, EnumeratedVariable **scope_in, int arity_in), sequence, distance, matrix);
@@ -99,7 +98,8 @@ public:
         }
     }
     double computeTightness() override;
-    void dump(ostream&, bool) override {}
+    void dump(ostream& os, bool = true) override { os << this << "Incremental regular cost function over " << Scope << endl; }
+    std::ostream& printLayers(std::ostream& os);
     std::ostream& printstate(std::ostream& os);
 
 private:

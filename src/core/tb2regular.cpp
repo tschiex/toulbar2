@@ -43,41 +43,20 @@ bool DACCompare(const EnumeratedVariable* v1, const EnumeratedVariable* v2)
 // ------------ The WRegular class -------------------
 // ---------------------------------------------------
 
-// A first naive creator that allows everything with constant transition cost
-WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, Cost weight)
-    : AbstractNaryConstraint(wcsp, scope_in, arity_in)
-    , intDLinkStore(arity_in * 10) // TODO something less naive would be good
-    , lb(MIN_COST)
-{
-    // Copy the scope and DAC order it
-    Scope.assign(scope_in, scope_in + arity_in);
-    DACScope.assign(scope_in, scope_in + arity_in);
-    sort(DACScope.begin(), DACScope.end(), DACCompare);
-
-    // Create a simple set of arcs that allows all values at each layer
-    for (int layer = 0; layer < get_layer_num(); layer++) {
-        conflictWeights.push_back(0);
-        layerWidth.push_back(1); // one node
-        ArcRef arcIdx = 0;
-        for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
-            Arc newArc(0, val, weight, 0);
-            allArcs[layer].push_back(newArc);
-            arcsAtLayerValue[layer][val].push_back(arcIdx);
-            arcIdx++;
-        }
-    }
-    layerWidth.push_back(1); // one node on the last layer too
-}
-
-// The same one from a Cost in a file
+// A counting one, reads a vector of values and a min/max distance
 WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istream& file)
     : AbstractNaryConstraint(wcsp, scope_in, arity_in)
     , intDLinkStore(arity_in * 10) // TODO something less naive would be good
     , lb(MIN_COST)
-
 {
+    static const bool debug{ true };
+
     Cost weight;
-    file >> weight;
+    file >> weight; // violation cost
+    bool boundByAbove;
+    file >> boundByAbove; // max dist or min dist
+    int distBound;
+    file >> distBound; // the actual bound
 
     // Copy the scope and DAC order it
     Scope.assign(scope_in, scope_in + arity_in);
@@ -86,20 +65,58 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
 
     allArcs.resize(get_layer_num());
     arcsAtLayerValue.resize(get_layer_num());
+    delta.resize(get_layer_num());
+    //    alpha.resize(get_layer_num());
+    //    beta.resize(get_layer_num());
+    alphap.resize(get_layer_num());
+    //    betap.resize(get_layer_num());
+    layerWidth.push_back(1); // one node to start
 
-    // Create a simple set of arcs that allows all values at each layer
+    // Create counting arcs
+    // Would need to be minimized on the final layers
     for (int layer = 0; layer < get_layer_num(); layer++) {
         conflictWeights.push_back(0);
-        layerWidth.push_back(1); // one node
+        delta[layer].resize(DACScope[layer]->getDomainInitSize(), MIN_COST);
+        //    alpha[layer].resize(layerWidth[layer],MAX_COST);
+        //    beta[layer].resize(layerWidth[layer],MAX_COST);
+        alphap[layer].resize(layerWidth[layer], MAX_COST);
+        //    betap[layer].resize(layerWidth[layer],MAX_COSTq);
+
+        int corrNext = max(0, distBound - get_layer_num() + layer + 1);
+
+        if (layer < get_layer_num() - 1) {
+            // the count in next layer cannot exceed the layer number
+            // all counts above the bound are equivalent (monotonic)
+            int maxw = min(layer + 2, distBound + 2);
+            corrNext = min(corrNext, maxw - 1); // one path at least
+            layerWidth.push_back(maxw - corrNext);
+        } else
+            layerWidth.push_back(1); // last layer has one exit node
+        int corr = max(0, corrNext - 1);
+
         int arcRef = 0;
         arcsAtLayerValue[layer].resize(DACScope[layer]->getDomainInitSize(), &intDLinkStore);
-        for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
-            allArcs[layer].push_back(Arc(0, val, weight, 0));
-            arcsAtLayerValue[layer][val].push_back(arcRef);
-            arcRef++;
+        unsigned forbidValue;
+        file >> forbidValue;
+        for (int node = 0; node < layerWidth[layer]; node++) {
+            for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
+                int nextCount = node + corr + (val != forbidValue);
+                int nextNode = min(layerWidth[layer + 1] - 1, max(0, nextCount - corrNext));
+                bool needToPay = (layer == get_layer_num() - 1) && ((nextCount > distBound) ^ boundByAbove);
+                allArcs[layer].push_back(Arc(node, val, needToPay ? weight : MIN_COST, nextNode));
+                arcsAtLayerValue[layer][val].push_back(arcRef);
+                arcRef++;
+            }
         }
     }
-    layerWidth.push_back(1); // one node on the last nodes layer too
+
+    if (debug) {
+        ofstream os("wregular.dot");
+        printLayers(os);
+        os.close();
+        String sol = L"0000";
+        cout << eval(sol) << endl;
+    }
 }
 
 // This one needs to be finished. may be a cleanDanglingNodes method outside of it would be better.
@@ -206,6 +223,37 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA&
 
 WRegular::~WRegular()
 {
+}
+
+// Export the unrolled automata for debugging purposes //
+// Could be nice to see All arcs and separate deleted from non deleted
+// but the deletion status is in the DLink, not in the arc.
+std::ostream& WRegular::printLayers(std::ostream& os)
+{
+
+    os << "digraph \"wregular\" {" << endl;
+    os << "\tgraph [hierarchic=1];" << endl;
+    // Draw vertices
+    int nodeShift = 0;
+    for (int layer = 0; layer <= get_layer_num(); layer++) {
+        for (int node = 0; node < layerWidth[layer]; node++) {
+            os << "\t" << nodeShift + node << " [name=\"" << layer << "," << node << "\"];" << endl;
+        }
+        nodeShift += layerWidth[layer];
+    }
+    // and Arcs
+    nodeShift = 0;
+    for (int layer = 0; layer < get_layer_num(); layer++) {
+        for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
+            for (ArcRef arc : arcsAtLayerValue[layer][val]) {
+                os << "\t" << nodeShift + allArcs[layer][arc].source << " -> " << nodeShift + layerWidth[layer] + allArcs[layer][arc].target << " [label=\"";
+                os << allArcs[layer][arc].value << "," << allArcs[layer][arc].weight << "\"];" << endl;
+            }
+        }
+        nodeShift += layerWidth[layer];
+    }
+    os << "}";
+    return os;
 }
 
 std::ostream& WRegular::printstate(std::ostream& os)
@@ -350,19 +398,24 @@ void WRegular::updateap(int layer, vector<int> states)
 
 Cost WRegular::eval(const String& s)
 {
+    static const bool debug{ false };
+
     Cost res = -lb;
     int q = 0;
     for (int i = 0; i < arity_; i++) {
         BTListWrapper<ArcRef>::iterator it;
-        for (auto it = arcsAtLayerValue[i][s[i]].begin(); it != arcsAtLayerValue[i][s[i]].end(); ++it) {
-            if (allArcs[i][*it].get_source() == q) {
+
+        for (it = arcsAtLayerValue[i][s[i] - CHAR_FIRST].begin(); it != arcsAtLayerValue[i][s[i] - CHAR_FIRST].end(); ++it) {
+            if (debug)
+                cout << "Arc " << allArcs[i][*it].source << "-" << allArcs[i][*it].value << "-" << allArcs[i][*it].target << " " << allArcs[i][*it].weight << endl;
+            if (allArcs[i][*it].get_source() == q)
                 break;
-            }
         }
-        if (it == arcsAtLayerValue[i][s[i]].end()) {
+
+        if (it == arcsAtLayerValue[i][s[i] - CHAR_FIRST].end()) {
             return wcsp->getUb();
         } else {
-            res += allArcs[i][*it].get_weight() + delta[i][s[i]];
+            res += allArcs[i][*it].get_weight() + delta[i][s[i] - CHAR_FIRST];
         }
     }
     assert(res >= MIN_COST);
@@ -372,6 +425,9 @@ Cost WRegular::eval(const String& s)
 void WRegular::assign(int idx)
 {
     static const bool debug{ false };
+
+    if (debug)
+        cout << "After assign of " << idx << "\n";
 }
 
 void WRegular::remove(int idx)
