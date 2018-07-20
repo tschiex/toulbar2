@@ -79,7 +79,7 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
         delta[layer].resize(DACScope[layer]->getDomainInitSize(), MIN_COST);
         //    alpha[layer].resize(layerWidth[layer],MAX_COST);
         //    beta[layer].resize(layerWidth[layer],MAX_COST);
-        alphap[layer].resize(layerWidth[layer], MAX_COST);
+        alphap[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
         //    betap[layer].resize(layerWidth[layer],MAX_COSTq);
 
         int corrNext = max(0, distBound - get_layer_num() + layer + 1);
@@ -298,18 +298,28 @@ void WRegular::extend(int idx, unsigned val, Cost c)
 
 void WRegular::forwardoic()
 {
-    vector<vector<Cost> > unaryCostExtension;
-    unaryCostExtension.resize(get_layer_num());
+    static const bool debug{ false };
+
+    vector<vector<Cost> > unaryCostExtension(get_layer_num());
     for (int layer = 0; layer < get_layer_num(); layer++) {
         alphap[layer + 1].assign(layerWidth[layer + 1], wcsp->getUb());
         EnumeratedVariable* x = DACScope[layer];
         for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
             for (auto arc : arcsAtLayerValue[layer][val]) {
+                if (debug) {
+                    cout << "alphap[" << layer + 1 << "][" << allArcs[layer][arc].get_target() << "] is " << alphap[layer + 1][allArcs[layer][arc].get_target()];
+                    cout << " compared to " << alphap[layer][allArcs[layer][arc].get_source()] << "+" << allArcs[layer][arc].get_weight() << "+" << x->getCost(x->toValue(val)) << endl;
+                }
                 if (alphap[layer + 1][allArcs[layer][arc].get_target()] > alphap[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + x->getCost(x->toValue(val))) {
                     alphap[layer + 1][allArcs[layer][arc].get_target()] = alphap[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + x->getCost(x->toValue(val));
+
+                    if (debug) {
+                        cout << "\t=> set to " << alphap[layer + 1][allArcs[layer][arc].get_target()] << endl;
+                    }
                 }
             }
         }
+
         unaryCostExtension[layer].resize(DACScope[layer]->getDomainInitSize(), MIN_COST);
         for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
             for (auto it = arcsAtLayerValue[layer][val].begin(); it != arcsAtLayerValue[layer][val].end(); ++it) {
@@ -319,6 +329,9 @@ void WRegular::forwardoic()
                         alphap[layer + 1][allArcs[layer][*it].get_target()] - alphap[layer][allArcs[layer][*it].get_source()] - allArcs[layer][*it].get_weight());
                 } else {
                     arcsAtLayerValue[layer][val].erase(it);
+                    if (debug) {
+                        cout << "Erasing arc " << *it << " at layer " << layer << endl;
+                    }
                 }
             }
             extend(layer, val, unaryCostExtension[layer][val]);
@@ -330,6 +343,9 @@ void WRegular::forwardoic()
             cmin = t;
         }
     }
+    if (debug)
+        cout << "regular S0IC initial bound: " << cmin << endl;
+
     projectLB(cmin);
 }
 
