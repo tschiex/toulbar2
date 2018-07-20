@@ -66,6 +66,10 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     allArcs.resize(get_layer_num());
     arcsAtLayerValue.resize(get_layer_num());
     delta.resize(get_layer_num());
+//    alpha.resize(get_layer_num());
+//    beta.resize(get_layer_num());
+    alphap.resize(get_layer_num());
+//    betap.resize(get_layer_num());
     layerWidth.push_back(1); // one node to start
 
     // Create counting arcs
@@ -73,6 +77,11 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     for (int layer = 0; layer < get_layer_num(); layer++) {
         conflictWeights.push_back(0);
         delta[layer].resize(DACScope[layer]->getDomainInitSize(), MIN_COST);
+//    alpha[layer].resize(layerWidth[layer],MAX_COST);
+//    beta[layer].resize(layerWidth[layer],MAX_COST);
+        alphap[layer].resize(layerWidth[layer],MAX_COST);
+//    betap[layer].resize(layerWidth[layer],MAX_COST);
+
         int corrNext = max(0, distBound - get_layer_num() + layer + 1);
 
         if (layer < get_layer_num() - 1) {
