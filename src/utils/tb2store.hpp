@@ -56,9 +56,9 @@ template <class T, class V>
 class StoreStack {
     T** pointers;
     V* content;
-    ptrdiff_t index;    // stack pointer
+    ptrdiff_t index; // stack pointer
     ptrdiff_t indexMax; // stack top (realloc if reached)
-    ptrdiff_t base;     // frame pointer that will point to the previous frame (world)
+    ptrdiff_t base; // frame pointer that will point to the previous frame (world)
 
     // make it private because we don't want copy nor assignment
     StoreStack(const StoreStack& s);

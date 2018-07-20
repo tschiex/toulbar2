@@ -304,7 +304,7 @@ void WeightedRegular::addToCostFunctionNetwork(WCSP* wcsp)
     if (automaton->getInitialStates().size() > 0) {
         vector<Cost> initial_states_costs(automaton->getNbStates(), top);
         vector<pair<int, Cost> > initialStates = automaton->getInitialStates();
-        for (auto const & initial : initialStates) {
+        for (auto const& initial : initialStates) {
             //cout << initial.first << " " << initial.second << endl;
             initial_states_costs[initial.first] = initial.second;
         }
@@ -409,7 +409,7 @@ void WeightedRegular::addToCostFunctionNetwork(WCSP* wcsp)
 
         vector<Cost> tmp_ternary_costs(Domsize, top);
         vector<WTransition*> transitions = automaton->getTransitions();
-        for (auto const &transition : transitions) {
+        for (auto const& transition : transitions) {
             int start = transition->start;
             int end = transition->end;
             unsigned int symbol = transition->symbol;
