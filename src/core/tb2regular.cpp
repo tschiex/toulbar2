@@ -32,7 +32,7 @@ ostream& operator<<(ostream& os, pair<U, T> const& p)
 {
     return os << "p{" << p.first << "," << p.second << "}";
 }
-}
+} // namespace std
 
 bool DACCompare(const EnumeratedVariable* v1, const EnumeratedVariable* v2)
 {
@@ -66,10 +66,10 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     allArcs.resize(get_layer_num());
     arcsAtLayerValue.resize(get_layer_num());
     delta.resize(get_layer_num());
-    //    alpha.resize(get_layer_num());
-    //    beta.resize(get_layer_num());
-    alphap.resize(get_layer_num());
-    //    betap.resize(get_layer_num());
+    //    alpha.resize(get_layer_num()+1);
+    //    beta.resize(get_layer_num()+1);
+    alphap.resize(get_layer_num() + 1);
+    //    betap.resize(get_layer_num()+1);
     layerWidth.push_back(1); // one node to start
 
     // Create counting arcs
@@ -298,23 +298,19 @@ void WRegular::extend(int idx, unsigned val, Cost c)
 
 void WRegular::forwardoic()
 {
-    alphap.resize(get_layer_num() + 1);
-    alphap[0].resize(1, 0);
-    delta.resize(get_layer_num());
     vector<vector<Cost> > unaryCostExtension;
     unaryCostExtension.resize(get_layer_num());
     for (int layer = 0; layer < get_layer_num(); layer++) {
-        alphap[layer + 1].resize(layerWidth[layer + 1], wcsp->getUb());
+        alphap[layer + 1].assign(layerWidth[layer + 1], wcsp->getUb());
         EnumeratedVariable* x = DACScope[layer];
         for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
-            for (auto it = arcsAtLayerValue[layer][val].begin(); it != arcsAtLayerValue[layer][val].end(); ++it) {
-                if (alphap[layer + 1][allArcs[layer][*it].get_target()] > alphap[layer][allArcs[layer][*it].get_source()] + allArcs[layer][*it].get_weight() + x->getCost(x->toValue(val))) {
-                    alphap[layer + 1][allArcs[layer][*it].get_target()] = alphap[layer][allArcs[layer][*it].get_source()] + allArcs[layer][*it].get_weight() + x->getCost(x->toValue(val));
+            for (auto arc : arcsAtLayerValue[layer][val]) {
+                if (alphap[layer + 1][allArcs[layer][arc].get_target()] > alphap[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + x->getCost(x->toValue(val))) {
+                    alphap[layer + 1][allArcs[layer][arc].get_target()] = alphap[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + x->getCost(x->toValue(val));
                 }
             }
         }
-        delta[layer].resize(layerWidth[layer], 0);
-        unaryCostExtension[layer].resize(layerWidth[layer], 0);
+        unaryCostExtension[layer].resize(DACScope[layer]->getDomainInitSize(), MIN_COST);
         for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
             for (auto it = arcsAtLayerValue[layer][val].begin(); it != arcsAtLayerValue[layer][val].end(); ++it) {
                 if (alphap[layer + 1][allArcs[layer][*it].get_target()] < wcsp->getUb()) {
@@ -328,10 +324,10 @@ void WRegular::forwardoic()
             extend(layer, val, unaryCostExtension[layer][val]);
         }
     }
-    Cost cmin;
-    for (auto t = alphap[get_layer_num()].begin(); t < alphap[get_layer_num()].end(); ++t) {
-        if (cmin > alphap[get_layer_num()][*t]) {
-            cmin = alphap[get_layer_num()][*t];
+    Cost cmin = wcsp->getUb();
+    for (const auto& t : alphap[get_layer_num()]) {
+        if (cmin > t) {
+            cmin = t;
         }
     }
     projectLB(cmin);
