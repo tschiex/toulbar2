@@ -93,7 +93,7 @@ public:
         }
     }
     double computeTightness() override;
-    void dump(ostream&, bool) override {}
+    void dump(ostream& os, bool = true) override { os << this << "Incremental regular cost function over " << Scope << endl; }
     std::ostream& printLayers(std::ostream& os);
     std::ostream& printstate(std::ostream& os);
 

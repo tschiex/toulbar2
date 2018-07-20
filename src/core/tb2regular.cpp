@@ -49,7 +49,7 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     , intDLinkStore(arity_in * 10) // TODO something less naive would be good
     , lb(MIN_COST)
 {
-    const bool debug{ true };
+    static const bool debug{ true };
 
     Cost weight;
     file >> weight; // violation cost
@@ -66,10 +66,10 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     allArcs.resize(get_layer_num());
     arcsAtLayerValue.resize(get_layer_num());
     delta.resize(get_layer_num());
-//    alpha.resize(get_layer_num());
-//    beta.resize(get_layer_num());
+    //    alpha.resize(get_layer_num());
+    //    beta.resize(get_layer_num());
     alphap.resize(get_layer_num());
-//    betap.resize(get_layer_num());
+    //    betap.resize(get_layer_num());
     layerWidth.push_back(1); // one node to start
 
     // Create counting arcs
@@ -77,10 +77,10 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     for (int layer = 0; layer < get_layer_num(); layer++) {
         conflictWeights.push_back(0);
         delta[layer].resize(DACScope[layer]->getDomainInitSize(), MIN_COST);
-//    alpha[layer].resize(layerWidth[layer],MAX_COST);
-//    beta[layer].resize(layerWidth[layer],MAX_COST);
-        alphap[layer].resize(layerWidth[layer],MAX_COST);
-//    betap[layer].resize(layerWidth[layer],MAX_COST);
+        //    alpha[layer].resize(layerWidth[layer],MAX_COST);
+        //    beta[layer].resize(layerWidth[layer],MAX_COST);
+        alphap[layer].resize(layerWidth[layer], MAX_COST);
+        //    betap[layer].resize(layerWidth[layer],MAX_COSTq);
 
         int corrNext = max(0, distBound - get_layer_num() + layer + 1);
 
@@ -233,7 +233,6 @@ std::ostream& WRegular::printLayers(std::ostream& os)
 
     os << "digraph \"wregular\" {" << endl;
     os << "\tgraph [hierarchic=1];" << endl;
-
     // Draw vertices
     int nodeShift = 0;
     for (int layer = 0; layer <= get_layer_num(); layer++) {
@@ -242,7 +241,6 @@ std::ostream& WRegular::printLayers(std::ostream& os)
         }
         nodeShift += layerWidth[layer];
     }
-
     // and Arcs
     nodeShift = 0;
     for (int layer = 0; layer < get_layer_num(); layer++) {
