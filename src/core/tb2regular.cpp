@@ -281,8 +281,8 @@ void WRegular::projectLB(Cost c)
     assert(lb <= c);
     Constraint::projectLB(c);
     for (int layer = 0; layer < get_layer_num() + 1; layer++) {
-        for (auto t = alphap[layer].begin(); t < alphap[layer].end(); ++t) {
-            alphap[layer][*t] -= c;
+        for (auto& t : alphap[layer]) {
+            t -= c;
         }
     }
 }
@@ -298,7 +298,7 @@ void WRegular::extend(int idx, unsigned val, Cost c)
 
 void WRegular::forwardoic()
 {
-    static const bool debug{ false };
+    static const bool debug{ true };
 
     vector<vector<Cost> > unaryCostExtension(get_layer_num());
     for (int layer = 0; layer < get_layer_num(); layer++) {
