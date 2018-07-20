@@ -228,9 +228,127 @@ std::ostream& WRegular::printstate(std::ostream& os)
     return  os;
 }
 
+void WRegular::projectLB(Cost c)
+{
+    lb += c;
+    assert(lb <= c);
+    Constraint::projectLB(c);
+    for(int layer = 0; layer < get_layer_num()+1; layer++){
+        for(auto t = alphap[layer].begin() ; t < alphap[layer].end() ; ++t){
+            alphap[layer][*t] -= c;
+        }
+    }
+}
+
+void WRegular::extend(int idx, unsigned val, Cost c)
+{
+    EnumeratedVariable* x = DACScope[idx];
+    if (x->unassigned()) {
+        delta[idx][val] += c;
+        x->extend(x->toValue(val), c);
+    }
+}
+
+void WRegular::forwardoic()
+{
+    alphap.resize(get_layer_num()+1);
+    alphap[0].resize(1,0);
+    delta.resize(get_layer_num());
+    vector<vector<Cost>> unaryCostExtension;
+    unaryCostExtension.resize(get_layer_num());
+    for(int layer = 0; layer < get_layer_num(); layer++)
+    {
+        alphap[layer+1].resize(layerWidth[layer+1],wcsp->getUb());
+        EnumeratedVariable* x = DACScope[layer];
+        for(unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) 
+        {
+            for(auto it = arcsAtLayerValue[layer][val].begin(); it != arcsAtLayerValue[layer][val].end(); ++it){
+                if(alphap[layer+1][allArcs[layer][*it].get_target()] > alphap[layer][allArcs[layer][*it].get_source()]+ allArcs[layer][*it].get_weight()+x->getCost(x->toValue(val))){
+                    alphap[layer+1][allArcs[layer][*it].get_target()] = alphap[layer][allArcs[layer][*it].get_source()]+ allArcs[layer][*it].get_weight()+x->getCost(x->toValue(val));
+                }
+            }
+        }
+        delta[layer].resize(layerWidth[layer],0);
+        unaryCostExtension[layer].resize(layerWidth[layer],0);
+        for(unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) 
+        {
+            for(auto it = arcsAtLayerValue[layer][val].begin(); it != arcsAtLayerValue[layer][val].end(); ++it){
+                if(alphap[layer+1][allArcs[layer][*it].get_target()] < wcsp->getUb()){
+                    unaryCostExtension[layer][val] = max(\
+                    unaryCostExtension[layer][val],\
+                    alphap[layer+1][allArcs[layer][*it].get_target()] - alphap[layer][allArcs[layer][*it].get_source()]-allArcs[layer][*it].get_weight());
+                } else {
+                    arcsAtLayerValue[layer][val].erase(it);
+                }
+            }
+            extend(layer,val, unaryCostExtension[layer][val]);
+        }
+    }
+    Cost cmin;
+    for(auto t = alphap[get_layer_num()].begin(); t< alphap[get_layer_num()].end();++t){
+        if(cmin > alphap[get_layer_num()][*t]){
+            cmin = alphap[get_layer_num()][*t];
+        }
+    }
+    projectLB(cmin);
+}
+
 void WRegular::propagate()
 {
- 
+    forwardoic();
+}
+
+void WRegular::updateap(int layer, vector<int> states) {
+    // Updates alphap[idx][state] for state in states
+    // always called with layer >= 1
+    assert(layer > 0);
+    vector<Cost> alphap_old(states.size());
+    EnumeratedVariable* x = DACScope[layer-1];
+    for(const auto &state : states){
+        alphap_old[state] = alphap[layer][state];
+        alphap[layer][state] = wcsp->getUb();
+    }
+    vector<bool> toExtend(DACScope[layer-1]->getDomainInitSize(),false);
+    for(unsigned val = 0; val < DACScope[layer-1]->getDomainInitSize(); val++) {
+        for(auto it = arcsAtLayerValue[layer-1][val].begin(); it != arcsAtLayerValue[layer-1][val].end(); ++it){
+            if (count(states.begin(), states.end(), allArcs[layer-1][*it].get_target())){
+                toExtend[val] = true;
+                if (alphap[layer][allArcs[layer-1][*it].get_target()] > alphap[layer-1][allArcs[layer-1][*it].get_source()]\
+                        + delta[layer-1][allArcs[layer-1][*it].get_source()] + allArcs[layer-1][*it].get_weight()\
+                        + x->getCost(x->toValue(val))) {
+                    alphap[layer][allArcs[layer-1][*it].get_target()] = alphap[layer-1][allArcs[layer-1][*it].get_source()]\
+                        + delta[layer-1][allArcs[layer-1][*it].get_source()] + allArcs[layer-1][*it].get_weight()\
+                        + x->getCost(x->toValue(val));
+                }
+            }
+        }
+    }
+    Cost ext;
+    for(unsigned val = 0; val < DACScope[layer-1]->getDomainInitSize(); val++) {
+        if(toExtend[val]){
+            ext = 0;
+            for(auto it = arcsAtLayerValue[layer-1][val].begin(); it != arcsAtLayerValue[layer-1][val].end(); ++it){
+                if(alphap[layer][allArcs[layer][*it].get_target()] < wcsp->getUb()){
+                    ext = max(ext,\
+                    alphap[layer][allArcs[layer][*it].get_target()] - alphap[layer-1][allArcs[layer][*it].get_source()]-allArcs[layer-1][*it].get_weight()-delta[layer-1][val]);
+                } else {
+                    arcsAtLayerValue[layer-1][val].erase(it);
+                }
+            }
+            extend(layer-1,val, ext);
+        }
+    }
+    if(layer < get_layer_num()){
+        vector<int> toUpdate;
+        for(unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++){
+            for(auto it = arcsAtLayerValue[layer][val].begin(); it != arcsAtLayerValue[layer][val].end(); ++it){
+                if(count(states.begin(), states.end(), allArcs[layer][*it].get_source()) && alphap_old[allArcs[layer][*it].get_source()]!=alphap[layer][allArcs[layer][*it].get_source()]){
+                    toUpdate.push_back(allArcs[layer][*it].get_target());
+                }
+            }
+        }
+        updateap(layer+1, toUpdate);
+    } 
 }
 
 Cost WRegular::eval( const String& s )
@@ -239,7 +357,7 @@ Cost WRegular::eval( const String& s )
     int q = 0;
     for (int i = 0; i < arity_; i++) {
         BTListWrapper<ArcRef>::iterator it;
-        for(it = arcsAtLayerValue[i][s[i]].begin(); it != arcsAtLayerValue[i][s[i]].end(); ++it) {
+        for(auto it = arcsAtLayerValue[i][s[i]].begin(); it != arcsAtLayerValue[i][s[i]].end(); ++it) {
             if(allArcs[i][*it].get_source() == q){
                 break;
             }
@@ -259,8 +377,6 @@ void WRegular::assign(int idx)
 {
     static const bool debug{false};
 
-    if (debug)
-        cout << "After assign of " << idx << "\n";
 }
 
 

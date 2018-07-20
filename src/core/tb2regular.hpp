@@ -42,8 +42,8 @@ public:
         Cost weight;
 
         int get_source() {return source;};
-        int get_target();
-        Value get_value();
+        int get_target() {return target;};
+        Value get_value() {return value;};
         Cost get_weight() {return weight;};
     };
     typedef int ArcRef;
@@ -61,6 +61,11 @@ public:
     void increase(int idx) override;
     void decrease(int idx) override;
     void projectFromZero(int idx) override;
+
+    void projectLB(Cost c);
+    void extend(int idx, unsigned val, Cost c);
+    void forwardoic();
+    void updateap(int idx, vector<int> states);
 
     void propagate() override;
 
