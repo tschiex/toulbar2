@@ -8,7 +8,7 @@
 		 cost: 5.0
 		 above: 1
 		 distance: 3
-		 label: [1 1 1 1]
+		 labels: [[1 1 1 1]]
 	     }
 	   }
      un0 : { scope: [0] costs: [1.0 0.0] }

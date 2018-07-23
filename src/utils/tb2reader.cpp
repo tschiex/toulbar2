@@ -1276,7 +1276,7 @@ void CFNStreamReader::readGlobalCostFunction(vector<int>& scope, const string& f
     unsigned int arity = scope.size();
 
     map<string, string> GCFTemplates = {
-        { "clique", ":rhs:N:values:[V+]S" },
+        { "clique", ":rhs:N:values:[v+]S" },
         { "salldiff", ":metric:K:cost:c" },
         { "sgcc", ":metric:K:cost:c:bounds:[vNN]+" }, // Read first keyword then special case processing
         { "ssame", "SPECIAL" }, // Special case processing
@@ -1293,7 +1293,7 @@ void CFNStreamReader::readGlobalCostFunction(vector<int>& scope, const string& f
         { "MST", "" },
         { "smstdp", "" },
         { "wregular", ":nb_states:N:starts:[NC]+:ends:[NC]+:transitions:[NvNC]+" },
-        { "mdd", ":cost:c:above:N:distance:N:label:[v]S" },
+        { "mdd", ":cost:c:above:N:distance:N:labels:[vS]+" },
         { "walldiff", ":metric:K:cost:c" },
         { "wgcc", ":metric:K:cost:c:bounds:[vNN]+" },
         { "wsame", ":metric:K:cost:c" },
@@ -1473,6 +1473,7 @@ void CFNStreamReader::generateGCFStreamFromTemplate(vector<int>& scope, const st
     unsigned int numberOfTuplesRead = 0;
     bool isOpenedBrace = false;
     bool variableRepeat = false;
+    bool variableRScope = false;
     vector<pair<char, string> > streamContentVec;
 
     // Main loop: read template string char by char, and read the CFN file accordingly to the pattern
@@ -1483,6 +1484,10 @@ void CFNStreamReader::generateGCFStreamFromTemplate(vector<int>& scope, const st
                 isOpenedBrace = false;
             } else if (GCFTemplate[i] == '+') {
                 variableRepeat = true;
+                repeatedSymbols.push_back(GCFTemplate[i]);
+            } else if (GCFTemplate[i] == 'S') {
+                variableRepeat = true;
+                variableRScope = true;
                 repeatedSymbols.push_back(GCFTemplate[i]);
             } else {
                 repeatedSymbols.push_back(GCFTemplate[i]);
@@ -1590,7 +1595,7 @@ void CFNStreamReader::generateGCFStreamFromTemplate(vector<int>& scope, const st
 
                 size_t repeatIndex = 0;
                 while ((repeatIndex < repeatedSymbols.size()) && !isCBrace(token)) {
-                    if (repeatedSymbols[repeatIndex] == '+')
+                    if (repeatedSymbols[repeatIndex] == '+' || repeatedSymbols[repeatIndex] == 'S')
                         repeatIndex = 0;
                     char symbol = repeatedSymbols[repeatIndex];
                     if (symbol == 'N') {
@@ -1621,6 +1626,7 @@ void CFNStreamReader::generateGCFStreamFromTemplate(vector<int>& scope, const st
                             repeatedContentVec.push_back(std::make_pair('V', token));
                     } else if (symbol == 'v') {
                         // V0 : value MUST be a number
+                        // TODO except for scope based vector
                         for (char c : token) {
                             if (!isdigit(c)) {
                                 cerr << "Error: value index required at line " << lineNumber << " but read " << token << endl;
@@ -1654,8 +1660,14 @@ void CFNStreamReader::generateGCFStreamFromTemplate(vector<int>& scope, const st
                     } else
                         std::tie(lineNumber, token) = this->getNextToken();
                 }
-                if (variableRepeat) { // we must push the size of the repeat and its contents
-                    repeatedContentVec.push_back(std::make_pair('N', std::to_string(variableRepeatVec.size())));
+                if (variableRepeat) { // we either need to push the size of the repeat and its contents or check its length
+                    if (!variableRScope)
+                        repeatedContentVec.push_back(std::make_pair('N', std::to_string(variableRepeatVec.size())));
+                    else {
+                        if (variableRepeatVec.size() != scope.size()) {
+                            cerr << "Error: the parameter for global cost function " << funcType << " must have size " << scope.size() << " at line " << lineNumber << endl;
+                        }
+                    }
                     repeatedContentVec.insert(repeatedContentVec.end(), variableRepeatVec.begin(), variableRepeatVec.end());
                     variableRepeatVec.clear();
                 }

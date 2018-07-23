@@ -98,12 +98,11 @@ public:
         }
     }
     double computeTightness() override;
-    void dump(ostream& os, bool = true) override { os << this << "Incremental regular cost function over " << Scope << endl; }
+    void dump(ostream& os, bool = true) override { os << this << "Incremental regular cost function over " << DACScope << endl; }
     std::ostream& printLayers(std::ostream& os);
     std::ostream& printstate(std::ostream& os);
 
 private:
-    vector<EnumeratedVariable*> Scope;
     vector<EnumeratedVariable*> DACScope;
     vector<int> layerWidth; //number of nodes at each layer
     vector<vector<Arc> > allArcs; // Arcs for each layer, increasing nodeidx

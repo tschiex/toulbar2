@@ -59,7 +59,6 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     file >> distBound; // the actual bound
 
     // Copy the scope and DAC order it
-    Scope.assign(scope_in, scope_in + arity_in);
     DACScope.assign(scope_in, scope_in + arity_in);
     sort(DACScope.begin(), DACScope.end(), DACCompare);
 
@@ -72,6 +71,13 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     //    betap.resize(get_layer_num()+1);
     layerWidth.push_back(1); // one node to start
 
+    int nbSols;
+    file >> nbSols;
+
+    if (nbSols != 1) {
+        cerr << "Error: regular can ony handle one solution." << endl;
+        exit(EXIT_FAILURE);
+    }
     // Create counting arcs
     // Would need to be minimized on the final layers
     for (int layer = 0; layer < get_layer_num(); layer++) {
@@ -125,8 +131,6 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA&
     , intDLinkStore(arity_in * 10) // TODO something less naive would be good
     , lb(MIN_COST)
 {
-    // Useless, should be in super class ?
-    Scope.assign(scope_in, scope_in + arity_in);
     // Copy the scope and DAC order it
     DACScope.assign(scope_in, scope_in + arity_in);
     sort(DACScope.begin(), DACScope.end(), DACCompare);
