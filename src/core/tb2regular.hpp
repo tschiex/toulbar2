@@ -67,8 +67,14 @@ public:
 
     void projectLB(Cost c);
     void extend(int idx, unsigned val, Cost c);
+    void project1(int idx, unsigned val, Cost c);
     void forwardoic();
+    void forwardac();
+    void backwardac();
     void updateap(int idx, vector<int> states);
+    void updatea(int idx, vector<int> states);
+    void updateb(int idx, vector<int> states);
+    void checkSupport(int layer);
 
     void propagate() override;
 
@@ -121,6 +127,8 @@ private:
     vector<vector<StoreInt> > Predp; // nodeidx of the previous state that gives alphap (or is the arc more useful?)
     vector<vector<StoreInt> > Succ; // nodeidx of the next state that gives beta (or is the arc more useful?)
     vector<vector<StoreInt> > Succp; // nodeidx of the next state that gives beta (or is the arc more useful?)
+
+    vector<vector<StoreInt> > Supp; // ArcRef of the arc that supports a variable/value pair
 };
 
 #endif /* TB2REG_HPP_ */
