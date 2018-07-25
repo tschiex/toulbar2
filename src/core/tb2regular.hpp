@@ -71,7 +71,8 @@ public:
     void forwardoic();
     void forwardac();
     void backwardac();
-    void updateap(int idx, vector<int> states);
+    bool updateap(int idx, vector<int> states);
+    void updateoic(int idx, vector<int> states);
     void updatea(int idx, vector<int> states);
     void updateb(int idx, vector<int> states);
     void checkSupport(int layer);
