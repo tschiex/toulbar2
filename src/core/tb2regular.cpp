@@ -361,10 +361,10 @@ void WRegular::forwardoic()
         EnumeratedVariable* x = DACScope[layer];
         for (auto itval = x->begin(); itval != x->end(); ++itval) {
             for (auto arc : arcsAtLayerValue[layer][*itval]) {
-                if (debug) {
+                /*if (debug) {
                     cout << "alphap[" << layer + 1 << "][" << allArcs[layer][arc].get_target() << "] is " << alphap[layer + 1][allArcs[layer][arc].get_target()];
                     cout << " compared to " << alphap[layer][allArcs[layer][arc].get_source()] << "+" << allArcs[layer][arc].get_weight() << "+" << delta[layer][*itval] << "+" << x->getCost(x->toValue(*itval)) << endl;
-                }
+                }*/
                 if (alphap[layer + 1][allArcs[layer][arc].get_target()] > alphap[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + delta[layer][*itval] + x->getCost(x->toValue(*itval))) {
                     alphap[layer + 1][allArcs[layer][arc].get_target()] = alphap[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + delta[layer][*itval] + x->getCost(x->toValue(*itval));
 
@@ -375,7 +375,7 @@ void WRegular::forwardoic()
             }
         }
 
-        unaryCostExtension[layer].resize(DACScope[layer]->getDomainInitSize(), MIN_COST);
+        unaryCostExtension[layer].resize(x->getDomainInitSize(), MIN_COST);
         for (auto itval = x->begin(); itval != x->end(); ++itval) {
             for (auto it = arcsAtLayerValue[layer][*itval].begin(); it != arcsAtLayerValue[layer][*itval].end(); ++it) {
                 if (alphap[layer + 1][allArcs[layer][*it].get_target()] < wcsp->getUb()) {
@@ -664,7 +664,7 @@ void WRegular::updateoic(int layer, vector<int> states)
 
     assert(layer > 0);
     vector<Cost> alphap_old(states.size());
-    vector<bool> toExtend(DACScope[layer - 1]->getDomainInitSize(), false);
+    vector<bool> toExtend(x->getDomainInitSize(), false);
     for (auto itval = x->begin(); itval != x->end(); ++itval) {
         for (auto arc : arcsAtLayerValue[layer - 1][*itval]) {
             if (count(states.begin(), states.end(), allArcs[layer - 1][arc].get_target())) {
@@ -829,7 +829,7 @@ void WRegular::assign(int idx)
 
 void WRegular::remove(int idx)
 {
-    static const bool debug{ false };
+    static const bool debug{ true };
 
     if (debug)
         cout << "In remove " << idx << endl;
@@ -872,7 +872,7 @@ void WRegular::decrease(int idx)
 
 void WRegular::projectFromZero(int idx)
 {
-    static const bool debug{ false };
+    static const bool debug{ true };
 
     if (!connected(idx))
         return;
