@@ -1,3 +1,4 @@
+// TODO check lb is used when "true" costs are computed
 /*----------------------------------------------------------------------
  *
  * Incremental regular constraint
@@ -351,12 +352,12 @@ void WRegular::project1(int idx, unsigned val, Cost c)
     }
 }
 
-void WRegular::forwardoic()
+void WRegular::forwardoic() // TODO rendre idempotent // initialisation des alpha/beta à Top dans ce cas: ici ou créateur ?
 {
     static const bool debug{ true };
 
-    vector<vector<Cost> > unaryCostExtension(get_layer_num());
     for (int layer = 0; layer < get_layer_num(); layer++) {
+
         alphap[layer + 1].assign(layerWidth[layer + 1], wcsp->getUb());
         EnumeratedVariable* x = DACScope[layer];
         for (auto itval = x->begin(); itval != x->end(); ++itval) {
@@ -375,12 +376,12 @@ void WRegular::forwardoic()
             }
         }
 
-        unaryCostExtension[layer].resize(DACScope[layer]->getDomainInitSize(), MIN_COST);
+        Cost unaryCostExtension{ MIN_COST };
         for (auto itval = x->begin(); itval != x->end(); ++itval) {
             for (auto it = arcsAtLayerValue[layer][*itval].begin(); it != arcsAtLayerValue[layer][*itval].end(); ++it) {
                 if (alphap[layer + 1][allArcs[layer][*it].get_target()] < wcsp->getUb()) {
-                    unaryCostExtension[layer][*itval] = max(
-                        unaryCostExtension[layer][*itval],
+                    unaryCostExtension = max(
+                        unaryCostExtension,
                         alphap[layer + 1][allArcs[layer][*it].get_target()] - alphap[layer][allArcs[layer][*it].get_source()] - allArcs[layer][*it].get_weight() - delta[layer][*itval]);
                 } else {
                     arcsAtLayerValue[layer][*itval].erase(it);
@@ -389,8 +390,8 @@ void WRegular::forwardoic()
                     }
                 }
             }
-            if (unaryCostExtension[layer][*itval] > MIN_COST)
-                extend(layer, *itval, unaryCostExtension[layer][*itval]);
+            if (unaryCostExtension > MIN_COST)
+                extend(layer, *itval, unaryCostExtension);
         }
     }
     Cost cmin = wcsp->getUb();
@@ -405,6 +406,7 @@ void WRegular::forwardoic()
     projectLB(cmin);
 }
 
+// TODO A t'on vraiment besoin de 3 passes pour AC ? (beta/alpha/beta)
 void WRegular::backwardac()
 {
     static const bool debug{ false };
@@ -492,6 +494,7 @@ void WRegular::propagate()
     cout << "Propagate - Cost(2031) = " << eval(sol) << endl;*/
 }
 
+// Called when a change occurs at layer on states
 void WRegular::updatea(int layer, vector<int> states)
 {
     static const bool debug{ true };
@@ -524,6 +527,7 @@ void WRegular::updatea(int layer, vector<int> states)
                 }
             }
         }
+        // TODO do we really need to remeber the old alpha?
         if (layer < get_layer_num()) {
             vector<int> toUpdate;
             for (auto itval = x->begin(); itval != x->end(); ++itval) {
@@ -650,6 +654,8 @@ bool WRegular::updateap(int layer, vector<int> states)
     }
 }
 
+// TODO states could be a set ?
+// TODO Too much job ?
 void WRegular::updateoic(int layer, vector<int> states)
 {
     // Updates alphap[idx][state] for state in states
@@ -672,8 +678,8 @@ void WRegular::updateoic(int layer, vector<int> states)
             }
         }
     }
-    vector<int> toUpdatea;
-    vector<int> toUpdateb;
+    vector<int> toUpdatea; // TODO set ?
+    vector<int> toUpdateb; // TODO set ?
     Cost ext;
     for (auto itval = x->begin(); itval != x->end(); ++itval) {
         if (toExtend[*itval]) {
@@ -718,7 +724,7 @@ void WRegular::updateoic(int layer, vector<int> states)
             }
         }
         if (debug)
-            cout << "regular S0IC initial bound: " << cmin << endl;
+            cout << "regular S0IC updated bound: " << cmin << endl;
 
         projectLB(cmin);
     }
@@ -738,7 +744,7 @@ void WRegular::checkSupport(int layer)
     vector<int> toUpdatea;
     vector<int> toUpdateb;
     for (auto itval = x->begin(); itval != x->end(); ++itval) {
-        if (alpha[layer][allArcs[layer][Supp[layer][*itval]].get_source()] + allArcs[layer][Supp[layer][*itval]].get_weight() + delta[layer][*itval] + beta[layer + 1][allArcs[layer][Supp[layer][*itval]].get_target()]) {
+        if (alpha[layer][allArcs[layer][Supp[layer][*itval]].get_source()] + allArcs[layer][Supp[layer][*itval]].get_weight() + delta[layer][*itval] + beta[layer + 1][allArcs[layer][Supp[layer][*itval]].get_target()] != MIN_COST) {
             //look for or create new support
             Cost cmin = wcsp->getUb();
             for (auto arc : arcsAtLayerValue[layer][*itval]) {
@@ -845,9 +851,10 @@ void WRegular::remove(int idx)
     if (!updateap(idx + 1, toUpdatea))
         updateoic(idx + 1, toUpdatea);
 
-    for (int layer = 0; layer < get_layer_num(); layer++) {
+    for (int layer = 0; layer < get_layer_num(); layer++) { // TODO All needed ?
         checkSupport(layer);
     }
+    // TODO Should we delete arcs in Qia ?
 
     if (debug) {
         /*String sol = L"1302";

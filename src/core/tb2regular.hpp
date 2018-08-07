@@ -124,10 +124,10 @@ private:
     vector<vector<StoreCost> > beta; // shortest path length from sink to layer/node for AC
     vector<vector<StoreCost> > betap; // shortest path length from source to layer/node with unaries for DAC
 
-    vector<vector<StoreInt> > Pred; // nodeidx of the previous state that gives alpha (or is the arc more useful?)
-    vector<vector<StoreInt> > Predp; // nodeidx of the previous state that gives alphap (or is the arc more useful?)
-    vector<vector<StoreInt> > Succ; // nodeidx of the next state that gives beta (or is the arc more useful?)
-    vector<vector<StoreInt> > Succp; // nodeidx of the next state that gives beta (or is the arc more useful?)
+    //    vector<vector<StoreInt> > Pred; // nodeidx of the previous state that gives alpha (or is the arc more useful?)
+    //    vector<vector<StoreInt> > Predp; // nodeidx of the previous state that gives alphap (or is the arc more useful?)
+    //    vector<vector<StoreInt> > Succ; // nodeidx of the next state that gives beta (or is the arc more useful?)
+    //    vector<vector<StoreInt> > Succp; // nodeidx of the next state that gives beta (or is the arc more useful?)
 
     vector<vector<StoreInt> > Supp; // ArcRef of the arc that supports a variable/value pair
 };
