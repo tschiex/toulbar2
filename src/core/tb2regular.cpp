@@ -345,11 +345,13 @@ void WRegular::project1(int idx, unsigned val, Cost c)
 
     if (debug)
         cout << "Project cost " << c << " to var " << idx << " value " << val << endl;
+    cout << *x << endl;
 
     if (x->unassigned()) {
         delta[idx][val] -= c;
         x->project(x->toValue(val), c);
     }
+    cout << *x << endl;
 }
 
 void WRegular::forwardoic() // TODO rendre idempotent // initialisation des alpha/beta à Top dans ce cas: ici ou créateur ?
@@ -431,7 +433,7 @@ void WRegular::backwardac()
                     beta[layer][allArcs[layer][arc].get_source()] = beta[layer + 1][allArcs[layer][arc].get_target()] + allArcs[layer][arc].get_weight() + delta[layer][*itval];
 
                     if (debug) {
-                        //cout << "\t=> set to " << beta[layer][allArcs[layer][arc].get_source()] << endl;
+                        cout << "\t=> set to " << beta[layer][allArcs[layer][arc].get_source()] << endl;
                     }
                 }
             }
@@ -451,7 +453,7 @@ void WRegular::backwardac()
 
 void WRegular::forwardac()
 {
-    static const bool debug{ false };
+    static const bool debug{ true };
 
     if (debug)
         cout << "ForwardAC" << endl;
@@ -469,9 +471,9 @@ void WRegular::forwardac()
             if (cmin > MIN_COST)
                 project1(layer, *itval, cmin);
         }
+        alpha[layer + 1].assign(layerWidth[layer + 1], wcsp->getUb());
         for (auto itval = x->begin(); itval != x->end(); ++itval) {
             for (auto arc : arcsAtLayerValue[layer][*itval]) {
-                alpha[layer + 1].assign(layerWidth[layer + 1], wcsp->getUb());
                 if (debug) {
                     cout << "alpha[" << layer + 1 << "][" << allArcs[layer][arc].get_target() << "] is " << alpha[layer + 1][allArcs[layer][arc].get_target()];
                     cout << " compared to " << alpha[layer][allArcs[layer][arc].get_source()] << "+" << allArcs[layer][arc].get_weight() << "+" << delta[layer][*itval] << endl;
@@ -480,7 +482,7 @@ void WRegular::forwardac()
                     alpha[layer + 1][allArcs[layer][arc].get_target()] = alpha[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + delta[layer][*itval];
 
                     if (debug) {
-                        //cout << "\t=> set to " << alpha[layer + 1][allArcs[layer][arc].get_target()] << endl;
+                        cout << "\t=> set to " << alpha[layer + 1][allArcs[layer][arc].get_target()] << endl;
                     }
                 }
             }
@@ -511,7 +513,7 @@ void WRegular::updatea(int layer, vector<int> states)
     EnumeratedVariable* x = DACScope[layer - 1];
 
     assert(layer > 0);
-    vector<Cost> alpha_old(states.size());
+    vector<Cost> alpha_old(get_layer_width(layer));
     for (const auto& state : states) {
         alpha_old[state] = alpha[layer][state];
         alpha[layer][state] = wcsp->getUb();
@@ -533,19 +535,19 @@ void WRegular::updatea(int layer, vector<int> states)
                 }
             }
         }
-        // TODO do we really need to remeber the old alpha?
-        if (layer < get_layer_num()) {
-            vector<int> toUpdate;
-            for (auto itval = DACScope[layer]->begin(); itval != DACScope[layer]->end(); ++itval) {
-                for (auto arc : arcsAtLayerValue[layer][*itval]) {
-                    if (count(states.begin(), states.end(), allArcs[layer][arc].get_source()) && alpha_old[allArcs[layer][arc].get_source()] != alpha[layer][allArcs[layer][arc].get_source()] && !count(toUpdate.begin(), toUpdate.end(), allArcs[layer][arc].get_target())) {
-                        toUpdate.push_back(allArcs[layer][arc].get_target());
-                    }
+    }
+    // TODO do we really need to remeber the old alpha?
+    if (layer < get_layer_num()) {
+        vector<int> toUpdate;
+        for (auto itval = DACScope[layer]->begin(); itval != DACScope[layer]->end(); ++itval) {
+            for (auto arc : arcsAtLayerValue[layer][*itval]) {
+                if (count(states.begin(), states.end(), allArcs[layer][arc].get_source()) && alpha_old[allArcs[layer][arc].get_source()] != alpha[layer][allArcs[layer][arc].get_source()] && !count(toUpdate.begin(), toUpdate.end(), allArcs[layer][arc].get_target())) {
+                    toUpdate.push_back(allArcs[layer][arc].get_target());
                 }
             }
-            if (!toUpdate.empty())
-                updatea(layer + 1, toUpdate);
         }
+        if (!toUpdate.empty())
+            updatea(layer + 1, toUpdate);
     }
 }
 
@@ -562,7 +564,7 @@ void WRegular::updateb(int layer, vector<int> states)
         cout << *x << endl;
 
     assert(layer < get_layer_num());
-    vector<Cost> beta_old(states.size());
+    vector<Cost> beta_old(get_layer_width(layer));
     for (const auto& state : states) {
         beta_old[state] = beta[layer][state];
         beta[layer][state] = wcsp->getUb();
@@ -584,25 +586,28 @@ void WRegular::updateb(int layer, vector<int> states)
                 }
             }
         }
-        if (layer > 0) {
-            vector<int> toUpdate;
-            for (auto itval = DACScope[layer - 1]->begin(); itval != DACScope[layer - 1]->end(); ++itval) {
-                for (auto it = arcsAtLayerValue[layer][*itval].begin(); it != arcsAtLayerValue[layer][*itval].end(); ++it) {
-                    if (beta[layer][allArcs[layer][*it].get_source()] > wcsp->getUb() || beta[layer + 1][allArcs[layer][*it].get_target()] > wcsp->getUb()) { //
-                        arcsAtLayerValue[layer][*itval].erase(it);
-                        if (debug) {
-                            cout << "Erasing arc " << *it << " at layer " << layer << endl;
-                        }
-                    } else {
-                        if (count(states.begin(), states.end(), allArcs[layer - 1][*it].get_target()) && beta_old[allArcs[layer - 1][*it].get_target()] != beta[layer][allArcs[layer - 1][*it].get_target()] && !count(toUpdate.begin(), toUpdate.end(), allArcs[layer - 1][*it].get_source())) {
-                            toUpdate.push_back(allArcs[layer - 1][*it].get_source());
-                        }
-                    }
+    }
+    for (auto itval = x->begin(); itval != x->end(); ++itval) {
+        for (auto it = arcsAtLayerValue[layer][*itval].begin(); it != arcsAtLayerValue[layer][*itval].end(); ++it) {
+            if (beta[layer][allArcs[layer][*it].get_source()] > wcsp->getUb() || beta[layer + 1][allArcs[layer][*it].get_target()] > wcsp->getUb()) { //
+                arcsAtLayerValue[layer][*itval].erase(it);
+                if (debug) {
+                    cout << "Erasing arc " << *it << " at layer " << layer << endl;
                 }
             }
-            if (!toUpdate.empty())
-                updateb(layer - 1, toUpdate);
         }
+    }
+    if (layer > 0) {
+        vector<int> toUpdate;
+        for (auto itval = DACScope[layer - 1]->begin(); itval != DACScope[layer - 1]->end(); ++itval) {
+            for (auto arc : arcsAtLayerValue[layer - 1][*itval]) {
+                if (count(states.begin(), states.end(), allArcs[layer - 1][arc].get_target()) && beta_old[allArcs[layer - 1][arc].get_target()] != beta[layer][allArcs[layer - 1][arc].get_target()] && !count(toUpdate.begin(), toUpdate.end(), allArcs[layer - 1][arc].get_source())) {
+                    toUpdate.push_back(allArcs[layer - 1][arc].get_source());
+                }
+            }
+        }
+        if (!toUpdate.empty())
+            updateb(layer - 1, toUpdate);
     }
 }
 
@@ -617,7 +622,7 @@ bool WRegular::updateap(int layer, vector<int> states)
         cout << "updateap on layer " << layer << endl;
 
     assert(layer > 0);
-    vector<Cost> alphap_old(states.size());
+    vector<Cost> alphap_old(get_layer_width(layer));
     EnumeratedVariable* x = DACScope[layer - 1];
     for (const auto& state : states) {
         alphap_old[state] = alphap[layer][state];
@@ -640,6 +645,13 @@ bool WRegular::updateap(int layer, vector<int> states)
                         //cout << "\t=> set to " << alphap[layer][allArcs[layer - 1][arc].get_target()] << endl;
                     }
                 }
+            }
+        }
+    }
+    for (auto itval = x->begin(); itval != x->end(); ++itval) {
+        for (auto it = arcsAtLayerValue[layer - 1][*itval].begin(); it != arcsAtLayerValue[layer - 1][*itval].end(); ++it) {
+            if (alphap[layer][allArcs[layer - 1][*it].get_target()] > wcsp->getUb() || alphap[layer - 1][allArcs[layer - 1][*it].get_source()] > wcsp->getUb()) { //
+                arcsAtLayerValue[layer - 1][*itval].erase(it);
             }
         }
     }
@@ -672,7 +684,7 @@ bool WRegular::updateap(int layer, vector<int> states)
 
 // TODO states could be a set ?
 // TODO Too much job ?
-void WRegular::updateoic(int layer, vector<int> states)
+void WRegular::updateoic(int layer)
 {
     // Updates alphap[idx][state] for state in states
     // always called with layer >= 1
@@ -685,17 +697,7 @@ void WRegular::updateoic(int layer, vector<int> states)
     EnumeratedVariable* x = DACScope[layer - 1];
 
     assert(layer > 0);
-    vector<Cost> alphap_old(states.size());
-    /*
-    vector<bool> toExtend(x->getDomainInitSize(), false);
-    for (auto itval = x->begin(); itval != x->end(); ++itval) {
-        for (auto arc : arcsAtLayerValue[layer - 1][*itval]) {
-            if (count(states.begin(), states.end(), allArcs[layer - 1][arc].get_target())) {
-                toExtend[*itval] = true;
-            }
-        }
-    }
-    */
+
     vector<int> toUpdatea; // TODO set ?
     vector<int> toUpdateb; // TODO set ?
     Cost ext;
@@ -704,6 +706,7 @@ void WRegular::updateoic(int layer, vector<int> states)
         ext = MIN_COST;
         for (auto it = arcsAtLayerValue[layer - 1][*itval].begin(); it != arcsAtLayerValue[layer - 1][*itval].end(); ++it) {
             if (alphap[layer][allArcs[layer - 1][*it].get_target()] < wcsp->getUb() && alphap[layer - 1][allArcs[layer - 1][*it].get_source()] < wcsp->getUb()) { //
+                // TODO the condition in the if was already tested in updateap, and infeasible arcs have alerady been removed
                 ext = max(ext, alphap[layer][allArcs[layer - 1][*it].get_target()] - alphap[layer - 1][allArcs[layer - 1][*it].get_source()] - allArcs[layer - 1][*it].get_weight() - delta[layer - 1][*itval]);
             } else {
                 arcsAtLayerValue[layer - 1][*itval].erase(it);
@@ -724,16 +727,7 @@ void WRegular::updateoic(int layer, vector<int> states)
         updateb(layer - 1, toUpdateb);
 
     if (layer < get_layer_num()) {
-        vector<int> toUpdate;
-        for (auto itval = DACScope[layer]->begin(); itval != DACScope[layer]->end(); ++itval) {
-            for (auto it = arcsAtLayerValue[layer][*itval].begin(); it != arcsAtLayerValue[layer][*itval].end(); ++it) {
-                if (count(states.begin(), states.end(), allArcs[layer][*it].get_source()) && alphap_old[allArcs[layer][*it].get_source()] != alphap[layer][allArcs[layer][*it].get_source()] && !count(toUpdate.begin(), toUpdate.end(), allArcs[layer][*it].get_target())) {
-                    toUpdate.push_back(allArcs[layer][*it].get_target());
-                }
-            }
-        }
-        if (!toUpdate.empty())
-            updateap(layer + 1, toUpdate);
+        updateoic(layer + 1);
     } else {
         Cost cmin = wcsp->getUb();
         for (const auto& t : alphap[get_layer_num()]) {
@@ -752,12 +746,12 @@ void WRegular::checkSupport(int layer)
 {
     static const bool debug{ true };
 
+    EnumeratedVariable* x = DACScope[layer];
+
     if (debug)
-        cout << "Checking support of variable " << layer << endl;
+        cout << "Checking support of variable " << *x << endl;
 
     assert(layer < get_layer_num());
-
-    EnumeratedVariable* x = DACScope[layer];
 
     vector<int> toUpdatea;
     vector<int> toUpdateb;
@@ -835,7 +829,7 @@ void WRegular::assign(int idx)
     updateb(idx, toUpdateb);
 
     if (!updateap(idx + 1, toUpdatea))
-        updateoic(idx + 1, toUpdatea);
+        updateoic(idx + 1);
 
     for (int layer = 0; layer < get_layer_num(); layer++) {
         checkSupport(layer);
@@ -868,7 +862,7 @@ void WRegular::remove(int idx)
     updateb(idx, toUpdateb);
 
     if (!updateap(idx + 1, toUpdatea))
-        updateoic(idx + 1, toUpdatea);
+        updateoic(idx + 1);
 
     for (int layer = 0; layer < get_layer_num(); layer++) { // TODO All needed ?
         checkSupport(layer);
@@ -911,7 +905,7 @@ void WRegular::projectFromZero(int idx)
     iota(begin(toUpdatea), end(toUpdatea), 0);
 
     if (!updateap(idx + 1, toUpdatea))
-        updateoic(idx + 1, toUpdatea);
+        updateoic(idx + 1);
 
     for (int layer = 0; layer < get_layer_num(); layer++) {
         checkSupport(layer);
