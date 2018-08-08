@@ -460,6 +460,7 @@ void WRegular::forwardac()
 
     for (int layer = 0; layer < get_layer_num(); layer++) {
         EnumeratedVariable* x = DACScope[layer];
+        bool didProject = false;
         for (auto itval = x->begin(); itval != x->end(); ++itval) {
             Cost cmin = wcsp->getUb();
             for (auto arc : arcsAtLayerValue[layer][*itval]) {
@@ -468,9 +469,13 @@ void WRegular::forwardac()
                     Supp[layer][*itval] = arc;
                 }
             }
-            if (cmin > MIN_COST)
+            if (cmin > MIN_COST) {
                 project1(layer, *itval, cmin);
+                didProject = true;
+            }
         }
+        if (didProject)
+            x->findSupport();
         alpha[layer + 1].assign(layerWidth[layer + 1], wcsp->getUb());
         for (auto itval = x->begin(); itval != x->end(); ++itval) {
             for (auto arc : arcsAtLayerValue[layer][*itval]) {
@@ -755,6 +760,7 @@ void WRegular::checkSupport(int layer)
 
     vector<int> toUpdatea;
     vector<int> toUpdateb;
+    bool didProject = false;
     for (auto itval = x->begin(); itval != x->end(); ++itval) {
         if (alpha[layer][allArcs[layer][Supp[layer][*itval]].get_source()] + allArcs[layer][Supp[layer][*itval]].get_weight() + delta[layer][*itval] + beta[layer + 1][allArcs[layer][Supp[layer][*itval]].get_target()] != MIN_COST) {
             //look for or create new support
@@ -770,10 +776,15 @@ void WRegular::checkSupport(int layer)
                 if (!count(toUpdateb.begin(), toUpdateb.end(), allArcs[layer][arc].get_source()))
                     toUpdateb.push_back(allArcs[layer][arc].get_source());
             }
-            if (cmin > MIN_COST)
+            if (cmin > MIN_COST) {
                 project1(layer, *itval, cmin);
+                didProject = true;
+            }
         }
     }
+    if (didProject)
+        x->findSupport();
+
     if (toUpdatea.size())
         updatea(layer + 1, toUpdatea);
     if (toUpdateb.size())
