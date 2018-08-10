@@ -43,8 +43,7 @@ bool DACCompare(const EnumeratedVariable* v1, const EnumeratedVariable* v2)
 // ---------------------------------------------------
 // ------------ The WRegular class -------------------
 // ---------------------------------------------------
-
-/*
+#if true
 // A counting one, reads a vector of values and a min/max distance
 WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istream& file)
     : AbstractNaryConstraint(wcsp, scope_in, arity_in)
@@ -129,7 +128,7 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
         os.close();
     }
 }
-*/
+#else
 // A counting one, reads several vector of values and a min/max distance
 WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istream& file)
     : AbstractNaryConstraint(wcsp, scope_in, arity_in)
@@ -191,18 +190,23 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
         arcsAtLayerValue[layer].resize(DACScope[layer]->getDomainInitSize(), &intDLinkStore);
         Supp[layer].resize(DACScope[layer]->getDomainInitSize(), -1);
 
+        vector<int> nextCount(nbSols);
+        int nextNode;
+        Cost toPay = MIN_COST;
+
         for (auto const& nodeState : prevDistCounts) {
             for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
-                vector<int> nextCount(arity_, 0);
                 for (int s = 0; s < nbSols; s++) {
                     bool different = (val != solutions[s][layer]);
-                    nextCount[s] = nodeState.first[s] + different;
+                    nextCount[s] = min(nodeState.first[s] + different, distBound + 1);
                 }
-                map<vector<int>, int>::iterator it;
-                std::tie(it, std::ignore) = nextDistCounts.insert(pair<vector<int>, int>(nextCount, nextDistCounts.size()));
-                int nextNode = (*it).second;
-                Cost toPay = MIN_COST;
-                if (layer == get_layer_num() - 1) {
+                if (layer != get_layer_num() - 1) {
+                    map<vector<int>, int>::iterator it;
+                    std::tie(it, std::ignore) = nextDistCounts.insert(pair<vector<int>, int>(nextCount, nextDistCounts.size()));
+                    nextNode = (*it).second;
+                } else {
+                    toPay = MIN_COST;
+                    nextNode = 0;
                     for (int s = 0; s < nbSols; s++) {
                         if ((nextCount[s] > distBound) ^ boundByAbove) {
                             toPay = weight;
@@ -215,7 +219,10 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
                 arcRef++;
             }
         }
-        layerWidth.push_back(nextDistCounts.size());
+        if (layer != get_layer_num() - 1)
+            layerWidth.push_back(nextDistCounts.size());
+        else
+            layerWidth.push_back(1);
         prevDistCounts.clear();
         swap(prevDistCounts, nextDistCounts);
     }
@@ -225,15 +232,12 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     alphap[get_layer_num()].resize(layerWidth[get_layer_num()], MAX_COST);
 
     if (debug) {
-        ofstream os(to_string(this) + "wregular.dot");
+        ofstream os(to_string(this) + "-wregular.dot");
         printLayers(os);
         os.close();
-        /*String sol = L"1302";
-        cout << "Cost(1302) = " << eval(sol) << endl;
-        sol = L"2031";
-        cout << "Cost(2031) = " << eval(sol) << endl;*/
     }
 }
+#endif
 
 // This one needs to be finished. may be a cleanDanglingNodes method outside of it would be better.
 WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA& automaton)
@@ -241,6 +245,8 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA&
     , intDLinkStore(arity_in * 10) // TODO something less naive would be good
     , lb(MIN_COST)
 {
+    static const bool debug{ true };
+
     // Copy the scope and DAC order it
     DACScope.assign(scope_in, scope_in + arity_in);
     sort(DACScope.begin(), DACScope.end(), DACCompare);
