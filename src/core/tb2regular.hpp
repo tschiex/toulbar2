@@ -68,14 +68,16 @@ public:
     void projectLB(Cost c);
     void extend(int idx, unsigned val, Cost c);
     void project1(int idx, unsigned val, Cost c);
+    bool checkSupportoic();
     void forwardoic();
-    void forwardac();
-    void backwardac();
-    bool updateap(int idx, vector<int> states);
-    void updateoic(int idx);
-    void updatea(int idx, vector<int> states);
-    void updateb(int idx, vector<int> states);
-    void checkSupport(int layer);
+    void forwarda();
+    void backwardb();
+    //    bool updateap(int idx, vector<int> states);
+    //    void updateoic(int idx);
+    //    void updatea(int idx, vector<int> states);
+    //    void updateb(int idx, vector<int> states);
+    //    void checkSupport(int layer);
+    bool checkSupportac(int layer, unsigned val);
 
     void propagate() override;
 
@@ -114,6 +116,9 @@ private:
     vector<int> layerWidth; //number of nodes at each layer
     vector<vector<Arc> > allArcs; // Arcs for each layer, increasing nodeidx
     vector<vector<int> > degrees; // for a node at given layer and nodeidx
+    vector<ArcRef> Suppoic; // path of cost zero (regular + unaries)
+    int layer_min; // number of first layer where costs might have been modified (possibly breaking supports)
+    int layer_max; // number of last layer where costs might have been modified
 
     DLinkStore<int> intDLinkStore; // for the BTList below
     vector<vector<BTListWrapper<ArcRef> > > arcsAtLayerValue; /* arcs in feasible paths in a given layer/value (int is arc index in allArcs): better than Qij ? */
@@ -125,11 +130,12 @@ private:
     vector<vector<StoreCost> > betap; // shortest path length from source to layer/node with unaries for DAC
 
     vector<vector<StoreInt> > Pred; // nodeidx of the previous state that gives alpha (or is the arc more useful?)
-    vector<vector<StoreInt> > Predp; // nodeidx of the previous state that gives alphap (or is the arc more useful?)
+    vector<vector<StoreInt> > Predp; // ArcRef of the previous arc that gives alphap
+
     vector<vector<StoreInt> > Succ; // nodeidx of the next state that gives beta (or is the arc more useful?)
     vector<vector<StoreInt> > Succp; // nodeidx of the next state that gives beta (or is the arc more useful?)
 
-    vector<vector<StoreInt> > Supp; // ArcRef of the arc that supports a variable/value pair
+    vector<vector<StoreInt> > Suppac; // ArcRef of the arc that supports a variable/value pair
 };
 
 #endif /* TB2REG_HPP_ */
