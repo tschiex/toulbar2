@@ -64,17 +64,16 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     //   sort(DACScope.begin(), DACScope.end(), DACCompare);
 
     layer_min = 0;
-    layer_max = get_layer_num();
+    layer_max = get_layer_num() - 1;
     allArcs.resize(get_layer_num());
     arcsAtLayerValue.resize(get_layer_num());
     delta.resize(get_layer_num());
     alpha.resize(get_layer_num() + 1);
     beta.resize(get_layer_num() + 1);
     alphap.resize(get_layer_num() + 1);
-    Predp.resize(get_layer_num() + 1);
+    //Predp.resize(get_layer_num() + 1);
     Suppac.resize(get_layer_num());
-    layer_min = 0;
-    layer_max = 0;
+    Suppoic = -1;
 
     //    betap.resize(get_layer_num()+1);
     layerWidth.push_back(1); // one node to start
@@ -94,7 +93,7 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
         alpha[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
         beta[layer].resize(layerWidth[layer], MAX_COST);
         alphap[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
-        Predp[layer].resize(layerWidth[layer], -1);
+        //Predp[layer].resize(layerWidth[layer], -1);
         //    betap[layer].resize(layerWidth[layer],MAX_COST);
 
         int corrNext = max(0, distBound - get_layer_num() + layer + 1);
@@ -128,7 +127,7 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     alpha[get_layer_num()].resize(layerWidth[get_layer_num()], MAX_COST);
     beta[get_layer_num()].resize(layerWidth[get_layer_num()], MIN_COST);
     alphap[get_layer_num()].resize(layerWidth[get_layer_num()], MAX_COST);
-    Predp[get_layer_num()].resize(layerWidth[get_layer_num()], -1);
+    //Predp[get_layer_num()].resize(layerWidth[get_layer_num()], -1);
 
     if (debug) {
         ofstream os(to_string(this) + "wregular.dot");
@@ -362,16 +361,14 @@ void WRegular::project1(int idx, unsigned val, Cost c)
 
 bool WRegular::checkSupportoic()
 {
+    //always called after update of alphap values
     static const bool debug{ true };
 
-    if (Suppoic.empty()) {
-        return (false);
+    if (Suppoic == -1) {
+        return false;
     } else {
-        Cost suppCost = -lb;
-        for (int layer = 0; layer < get_layer_num(); layer++) {
-            EnumeratedVariable* x = DACScope[layer];
-            suppCost += allArcs[layer][Suppoic[layer]].get_weight() + x->getCost(x->toValue(allArcs[layer][Suppoic[layer]].get_value())) + delta[layer][allArcs[layer][Suppoic[layer]].get_value()];
-        }
+        Cost suppCost = alphap[get_layer_num()][Suppoic];
+
         if (debug)
             cout << "Cost of current support = " << suppCost << endl;
 
@@ -387,7 +384,7 @@ void WRegular::forwardoic()
         cout << "Entering forwardoic between layers " << layer_min << " and " << layer_max << endl;
     }
 
-    int layer = layer_min;
+    int layer{ layer_min };
     vector<int> toUpdate(get_layer_width(layer + 1));
     iota(begin(toUpdate), end(toUpdate), 0);
     vector<Cost> alphap_old;
@@ -411,21 +408,22 @@ void WRegular::forwardoic()
             for (auto arc : arcsAtLayerValue[layer][*itval]) {
                 if (layer <= layer_max || count(toUpdate.begin(), toUpdate.end(), allArcs[layer - 1][arc].get_target())) {
                     /*if (debug) {
-                    cout << "alphap[" << layer+1 << "][" << allArcs[layer][arc].get_target() << "] is " << alphap[layer+1][allArcs[layer][arc].get_target()];
-                    cout << " compared to " << alphap[layer][allArcs[layer][arc].get_source()] << "+" << allArcs[layer][arc].get_weight() << "+" << delta[layer][*itval] << "+" << x->getCost(x->toValue(*itval)) << endl;
+                        cout << "alphap[" << layer + 1 << "][" << allArcs[layer][arc].get_target() << "] is " << alphap[layer + 1][allArcs[layer][arc].get_target()];
+                        cout << " compared to " << alphap[layer][allArcs[layer][arc].get_source()] << "+" << allArcs[layer][arc].get_weight() << "+" << delta[layer][*itval] << "+" << x->getCost(x->toValue(*itval)) << endl;
                     }*/
                     if (alphap[layer + 1][allArcs[layer][arc].get_target()] > alphap[layer][allArcs[layer][arc].get_source()] + delta[layer][*itval] + allArcs[layer][arc].get_weight() + x->getCost(x->toValue(*itval))) {
                         alphap[layer + 1][allArcs[layer][arc].get_target()] = alphap[layer][allArcs[layer][arc].get_source()] + delta[layer][*itval] + allArcs[layer][arc].get_weight() + x->getCost(x->toValue(*itval));
-                        Predp[layer + 1][allArcs[layer][arc].get_target()] = arc;
+                        //Predp[layer + 1][allArcs[layer][arc].get_target()] = arc;
                         if (debug) {
-                            cout << "\t=> set to " << alphap[layer + 1][allArcs[layer][arc].get_target()] << endl;
+                            //cout << "\t=> set to " << alphap[layer + 1][allArcs[layer][arc].get_target()] << endl;
                         }
                     }
                 }
             }
         }
-        if (layer == get_layer_num()) {
+        if (layer == get_layer_num() - 1) {
             toUpdate.resize(0);
+            layer++;
         } else {
             assert(layer < get_layer_num());
             layer++;
@@ -440,45 +438,45 @@ void WRegular::forwardoic()
                 }
                 swap(toUpdateNext, toUpdate);
             } else {
-                toUpdate.resize(0);
-                toUpdate.resize(get_layer_width(layer + 1));
+                toUpdate.resize(get_layer_width(layer + 1), 0);
                 iota(begin(toUpdate), end(toUpdate), 0);
             }
         }
     }
 
-    // Search of new support
+    if (!checkSupportoic()) {
+        // Search of new support
 
-    layer = get_layer_num() + 1;
-    Cost cmin = MAX_COST;
-    for (int node = 0; node < get_layer_width(layer); node++) {
-        if (cmin > alphap[layer][node]) {
-            cmin = alphap[layer][node];
-            Suppoic[layer - 1] = Predp[layer][node];
-        }
-    }
-    for (int i = get_layer_num(); i > 0; i--) {
-        Suppoic[i - 1] = Predp[i][allArcs[i][Suppoic[i]].get_source()];
-    }
-    // Extensions and projection on lb if needed
-    if (cmin != MIN_COST) {
-        Cost unaryCostExtension;
-        for (int i = 0; i < get_layer_num(); i++) {
-            EnumeratedVariable* x = DACScope[i];
-            for (auto itval = x->begin(); itval != x->end(); ++itval) {
-                unaryCostExtension = MIN_COST;
-                for (auto arc : arcsAtLayerValue[i][*itval]) {
-                    if (alphap[i + 1][allArcs[i][arc].get_target()] < wcsp->getUb() && alphap[i][allArcs[i][arc].get_source()] < wcsp->getUb()) { //
-                        unaryCostExtension = max(unaryCostExtension, alphap[i + 1][allArcs[i][arc].get_target()] - alphap[i][allArcs[i][arc].get_source()] - allArcs[i][arc].get_weight() - delta[i][*itval]);
-                    }
-                }
-                if (unaryCostExtension > MIN_COST)
-                    extend(i, *itval, unaryCostExtension);
-                layer_max = max(layer_max, i);
-                layer_min = min(layer_min, i);
+        layer = get_layer_num();
+        Cost cmin = MAX_COST;
+        for (int node = 0; node < get_layer_width(layer); node++) {
+            if (cmin > alphap[layer][node]) {
+                cmin = alphap[layer][node];
+                Suppoic = node;
             }
         }
-        projectLB(cmin);
+
+        // Extensions and projection on lb if needed
+        if (cmin != MIN_COST) {
+            Cost unaryCostExtension;
+            for (int i = 0; i < get_layer_num(); i++) {
+                EnumeratedVariable* x = DACScope[i];
+                for (auto itval = x->begin(); itval != x->end(); ++itval) {
+                    unaryCostExtension = MIN_COST;
+                    for (auto arc : arcsAtLayerValue[i][*itval]) {
+                        if (alphap[i + 1][allArcs[i][arc].get_target()] < wcsp->getUb() && alphap[i][allArcs[i][arc].get_source()] < wcsp->getUb()) { //
+                            unaryCostExtension = max(unaryCostExtension, alphap[i + 1][allArcs[i][arc].get_target()] - alphap[i][allArcs[i][arc].get_source()] - allArcs[i][arc].get_weight() - delta[i][*itval]);
+                        }
+                    }
+                    if (unaryCostExtension > MIN_COST)
+                        extend(i, *itval, unaryCostExtension);
+                    layer_max = max(layer_max, i);
+                    layer_min = min(layer_min, i);
+                }
+            }
+            projectLB(cmin);
+        }
+        assert(checkSupportoic());
     }
 }
 
@@ -520,7 +518,7 @@ void WRegular::backwardb()
                     if (beta[layer][allArcs[layer][arc].get_source()] > beta[layer + 1][allArcs[layer][arc].get_target()] + delta[layer][*itval] + allArcs[layer][arc].get_weight()) {
                         beta[layer][allArcs[layer][arc].get_source()] = beta[layer + 1][allArcs[layer][arc].get_target()] + allArcs[layer][arc].get_weight() + delta[layer][*itval];
                         if (debug) {
-                            cout << "\t=> set to " << beta[layer][allArcs[layer][arc].get_source()] << endl;
+                            //cout << "\t=> set to " << beta[layer][allArcs[layer][arc].get_source()] << endl;
                         }
                     }
                 }
@@ -541,6 +539,7 @@ void WRegular::backwardb()
 
         if (layer == 0) {
             toUpdate.resize(0);
+            layer = -1;
         } else {
             assert(layer > 0);
             layer--;
@@ -564,7 +563,11 @@ void WRegular::backwardb()
 
 bool WRegular::checkSupportac(int layer, unsigned val)
 {
-    return (alpha[layer][allArcs[layer][Suppac[layer][val]].get_source()] + allArcs[layer][Suppac[layer][val]].get_weight() + delta[layer][val] + beta[layer + 1][allArcs[layer][Suppac[layer][val]].get_target()] != MIN_COST);
+    if (Suppac[layer][val] > 0) {
+        return (alpha[layer][allArcs[layer][Suppac[layer][val]].get_source()] + allArcs[layer][Suppac[layer][val]].get_weight() + delta[layer][val] + beta[layer + 1][allArcs[layer][Suppac[layer][val]].get_target()] != MIN_COST);
+    } else {
+        return false;
+    }
 }
 
 void WRegular::forwarda()
@@ -581,9 +584,11 @@ void WRegular::forwarda()
     // before layer min -> alpha, weights, delta and beta are unchanged, so supports are still valid
 
     if (debug) {
-        for (int layer = 0; layer < layer_min; layer++) {
-            for (auto itval = DACScope[layer]->begin(); itval != DACScope[layer]->end(); ++itval) {
-                assert(checkSupportac(layer, *itval));
+        if (layer_min > 0) {
+            for (int layer = 0; layer < layer_min; layer++) {
+                for (auto itval = DACScope[layer]->begin(); itval != DACScope[layer]->end(); ++itval) {
+                    assert(checkSupportac(layer, *itval));
+                }
             }
         }
     }
@@ -639,14 +644,15 @@ void WRegular::forwarda()
                     if (alpha[layer + 1][allArcs[layer][arc].get_target()] > alpha[layer][allArcs[layer][arc].get_source()] + delta[layer][*itval] + allArcs[layer][arc].get_weight()) {
                         alpha[layer + 1][allArcs[layer][arc].get_target()] = alpha[layer][allArcs[layer][arc].get_source()] + delta[layer][*itval] + allArcs[layer][arc].get_weight();
                         if (debug) {
-                            cout << "\t=> set to " << alpha[layer + 1][allArcs[layer][arc].get_target()] << endl;
+                            //cout << "\t=> set to " << alpha[layer + 1][allArcs[layer][arc].get_target()] << endl;
                         }
                     }
                 }
             }
         } // TODO erase infeasible arcs
-        if (layer == get_layer_num()) {
+        if (layer == get_layer_num() - 1) {
             toUpdate.resize(0);
+            layer++;
         } else {
             assert(layer < get_layer_num());
             layer++;
@@ -671,7 +677,7 @@ void WRegular::forwarda()
 void WRegular::propagate()
 {
     layer_min = 0;
-    layer_max = get_layer_num();
+    layer_max = get_layer_num() - 1;
     forwardoic();
     backwardb();
     forwarda();
@@ -707,8 +713,19 @@ Cost WRegular::eval(const String& s)
 
 void WRegular::assign(int idx)
 {
+    static const bool debug{ true };
+
+    auto* x = scope[idx];
+
+    if (debug)
+        cout << "In assign " << scope[idx]->getName() << "=" << x->getValue() << "\n";
+
+    if (!connected(idx))
+        return;
+    deconnect(idx);
+
     layer_min = 0;
-    layer_max = get_layer_num();
+    layer_max = get_layer_num() - 1;
     forwardoic();
     backwardb();
     forwarda();
@@ -717,8 +734,14 @@ void WRegular::assign(int idx)
 
 void WRegular::remove(int idx)
 {
+    static const bool debug{ true };
+
+    if (debug) {
+        cout << "In remove " << idx << endl;
+    }
+
     layer_min = 0;
-    layer_max = get_layer_num();
+    layer_max = get_layer_num() - 1;
     forwardoic();
     backwardb();
     forwarda();
@@ -737,8 +760,17 @@ void WRegular::decrease(int idx)
 
 void WRegular::projectFromZero(int idx)
 {
+    static const bool debug{ true };
+
+    if (!connected(idx))
+        return;
+
+    if (debug)
+        cout << "In projectFromZero "
+             << "\n";
+
     layer_min = 0;
-    layer_max = get_layer_num();
+    layer_max = get_layer_num() - 1;
     forwardoic();
     backwardb();
     forwarda();

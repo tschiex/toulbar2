@@ -116,7 +116,7 @@ private:
     vector<int> layerWidth; //number of nodes at each layer
     vector<vector<Arc> > allArcs; // Arcs for each layer, increasing nodeidx
     vector<vector<int> > degrees; // for a node at given layer and nodeidx
-    vector<ArcRef> Suppoic; // path of cost zero (regular + unaries)
+    int Suppoic; // node in the last layer at the end of a zero path (always used with uptodate alphap values)
     int layer_min; // number of first layer where costs might have been modified (possibly breaking supports)
     int layer_max; // number of last layer where costs might have been modified
 
