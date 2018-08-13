@@ -43,7 +43,7 @@ bool DACCompare(const EnumeratedVariable* v1, const EnumeratedVariable* v2)
 // ---------------------------------------------------
 // ------------ The WRegular class -------------------
 // ---------------------------------------------------
-
+#if true
 // A counting one, reads a vector of values and a min/max distance
 WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istream& file)
     : AbstractNaryConstraint(wcsp, scope_in, arity_in)
@@ -93,8 +93,12 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
         alpha[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
         beta[layer].resize(layerWidth[layer], MAX_COST);
         alphap[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
+<<<<<<< HEAD
         //Predp[layer].resize(layerWidth[layer], -1);
         //    betap[layer].resize(layerWidth[layer],MAX_COST);
+=======
+        //    betap[layer].resize(layerWidth[layer], MAX_COST);
+>>>>>>> 9089396538699e20ce64ea577f1fb6c7de28552d
 
         int corrNext = max(0, distBound - get_layer_num() + layer + 1);
 
@@ -133,12 +137,118 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
         ofstream os(to_string(this) + "wregular.dot");
         printLayers(os);
         os.close();
-        /*String sol = L"1302";
-        cout << "Cost(1302) = " << eval(sol) << endl;
-        sol = L"2031";
-        cout << "Cost(2031) = " << eval(sol) << endl;*/
     }
 }
+#else
+// A counting one, reads several vector of values and a min/max distance
+WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istream& file)
+    : AbstractNaryConstraint(wcsp, scope_in, arity_in)
+    , intDLinkStore(arity_in * 10) // TODO something less naive would be good
+    , lb(MIN_COST)
+{
+    static const bool debug{ true };
+
+    Cost weight;
+    file >> weight; // violation cost
+    bool boundByAbove;
+    file >> boundByAbove; // max dist or min dist
+    int distBound;
+    file >> distBound; // the actual bound
+
+    // Copy the scope and DAC order it
+    DACScope.assign(scope_in, scope_in + arity_in);
+    //   sort(DACScope.begin(), DACScope.end(), DACCompare);
+
+    allArcs.resize(get_layer_num());
+    arcsAtLayerValue.resize(get_layer_num());
+    Supp.resize(get_layer_num());
+    delta.resize(get_layer_num());
+    alpha.resize(get_layer_num() + 1);
+    beta.resize(get_layer_num() + 1);
+    alphap.resize(get_layer_num() + 1);
+    //    betap.resize(get_layer_num()+1);
+    layerWidth.push_back(1); // one node to start
+
+    int nbSols;
+    file >> nbSols;
+    vector<vector<unsigned int> > solutions(nbSols);
+    for (int s = 0; s < nbSols; s++) {
+        for (int var = 0; var < arity_; var++) {
+            Value val;
+            file >> val;
+            solutions[s].push_back(val);
+        }
+    }
+    //TODO A fixed depth trie would be great!
+    map<vector<int>, int> DistCountsA;
+    vector<int> initCount(arity_, 0);
+    DistCountsA[initCount] = 0;
+    map<vector<int>, int> DistCountsB;
+    map<vector<int>, int>& prevDistCounts = DistCountsA;
+    map<vector<int>, int>& nextDistCounts = DistCountsB;
+
+    // Create counting arcs
+    // Would need to be minimized on the final layers
+    for (int layer = 0; layer < get_layer_num(); layer++) {
+        conflictWeights.push_back(0);
+        delta[layer].resize(DACScope[layer]->getDomainInitSize(), MIN_COST);
+        alpha[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
+        beta[layer].resize(layerWidth[layer], MAX_COST);
+        alphap[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
+        //    betap[layer].resize(layerWidth[layer], MAX_COST);
+
+        int arcRef = 0;
+        arcsAtLayerValue[layer].resize(DACScope[layer]->getDomainInitSize(), &intDLinkStore);
+        Supp[layer].resize(DACScope[layer]->getDomainInitSize(), -1);
+
+        vector<int> nextCount(nbSols);
+        int nextNode;
+        Cost toPay = MIN_COST;
+
+        for (auto const& nodeState : prevDistCounts) {
+            for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
+                for (int s = 0; s < nbSols; s++) {
+                    bool different = (val != solutions[s][layer]);
+                    nextCount[s] = min(nodeState.first[s] + different, distBound + 1);
+                }
+                if (layer != get_layer_num() - 1) {
+                    map<vector<int>, int>::iterator it;
+                    std::tie(it, std::ignore) = nextDistCounts.insert(pair<vector<int>, int>(nextCount, nextDistCounts.size()));
+                    nextNode = (*it).second;
+                } else {
+                    toPay = MIN_COST;
+                    nextNode = 0;
+                    for (int s = 0; s < nbSols; s++) {
+                        if ((nextCount[s] > distBound) ^ boundByAbove) {
+                            toPay = weight;
+                            break;
+                        }
+                    }
+                }
+                allArcs[layer].push_back(Arc(nodeState.second, val, toPay, nextNode));
+                arcsAtLayerValue[layer][val].push_back(arcRef);
+                arcRef++;
+            }
+        }
+        if (layer != get_layer_num() - 1)
+            layerWidth.push_back(nextDistCounts.size());
+        else
+            layerWidth.push_back(1);
+        prevDistCounts.clear();
+        swap(prevDistCounts, nextDistCounts);
+    }
+
+    alpha[get_layer_num()].resize(layerWidth[get_layer_num()], MAX_COST);
+    beta[get_layer_num()].resize(layerWidth[get_layer_num()], MIN_COST);
+    alphap[get_layer_num()].resize(layerWidth[get_layer_num()], MAX_COST);
+
+    if (debug) {
+        ofstream os(to_string(this) + "-wregular.dot");
+        printLayers(os);
+        os.close();
+    }
+}
+#endif
 
 // This one needs to be finished. may be a cleanDanglingNodes method outside of it would be better.
 WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA& automaton)
@@ -146,6 +256,8 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA&
     , intDLinkStore(arity_in * 10) // TODO something less naive would be good
     , lb(MIN_COST)
 {
+    static const bool debug{ true };
+
     // Copy the scope and DAC order it
     DACScope.assign(scope_in, scope_in + arity_in);
     sort(DACScope.begin(), DACScope.end(), DACCompare);
