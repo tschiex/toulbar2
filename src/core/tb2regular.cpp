@@ -93,12 +93,8 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
         alpha[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
         beta[layer].resize(layerWidth[layer], MAX_COST);
         alphap[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
-<<<<<<< HEAD
         //Predp[layer].resize(layerWidth[layer], -1);
         //    betap[layer].resize(layerWidth[layer],MAX_COST);
-=======
-        //    betap[layer].resize(layerWidth[layer], MAX_COST);
->>>>>>> 9089396538699e20ce64ea577f1fb6c7de28552d
 
         int corrNext = max(0, distBound - get_layer_num() + layer + 1);
 

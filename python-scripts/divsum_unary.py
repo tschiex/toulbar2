@@ -64,7 +64,6 @@ if (cfn_filename[-7:] == '.cfn.gz'):
 
 sol_filename = args.sols
 
-cfn_output = args.output if (args.output) else name + '_' + os.basename(sol_filename) + '_l' + str(args.lambda) + '.cfn.gz'
 
 ##########################
 
@@ -125,11 +124,11 @@ while (vars_todo != []):
     if args.cpd:
         for d in range(n_vals):
             for sol in sols:
-                cfn['functions'][f_name]['costs'][d] += Decimal(-l * dissim(d[0], sol[var_index[0]], AAs, msim))
+                cfn['functions'][f_name]['costs'][d] += Decimal(-args.lambdas[sol_idx] * dissim(d[0], sol[var_index[0]], AAs, msim))
     else:
         for d in range(n_vals):
             for sol in sols:
-                cfn['functions'][f_name]['costs'][d] += Decimal(-l * dissim(d, sol[var_index], domain, msim))  ## OR m_dissim[sol[var_index]][d] ??????????
+                cfn['functions'][f_name]['costs'][d] += Decimal(-args.lambdas[sol_idx] * dissim(d, sol[var_index], domain, msim))  ## OR m_dissim[sol[var_index]][d] ??????????
 
     
 write_cfn(cfn, cfn_output)
