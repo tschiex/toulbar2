@@ -9,6 +9,7 @@ Created on Mon Jun 18 16:52:50 2018
 import numpy as np
 import gzip
 import json
+import re
 from collections import OrderedDict
 from json import encoder
 import decimal
@@ -136,11 +137,14 @@ def execute(message, commandline):
     proc = subprocess.call(commandline, shell = True)
                     
 def get_optimum(tb2log):
-    for line in open(tb2log):
-        if "New sequence:" in line:
-            seq = re.split(' ',line)[2].strip('\n\r ')
-        if "Optimum:" in line:
-            s = re.split(' ',line)
+    lines = open(tb2log).readlines()
+    for i in range(len(lines)):
+        if "New solution:" in lines[i]:
+            seq = re.split(' ',lines[i+1])[1:]
+            for pos in range(len(seq)):
+                seq[pos] = int(seq[pos])
+        if "Optimum:" in lines[i]:
+            s = re.split(' ',lines[i])
             return (float(s[1]),seq)
     return (None,None)
     """

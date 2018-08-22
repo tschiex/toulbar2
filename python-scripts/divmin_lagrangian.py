@@ -22,9 +22,11 @@ on the optimal solution.
 
 import numpy as np
 from collections import OrderedDict
-import sys
+import sys, re
 from decimal import Decimal
 import argparse
+from math import sqrt
+
 from utils import execute, read_sols, write_cfn, read_sim_mat, dissim, get_domain, sols_to_cpd_sols, read_cfn_gzip, get_optimum
 
 AAs = "ARNDCQEGHILKMFPSTWYV"
@@ -93,8 +95,8 @@ if args.msim != None:
 else:
     msim = None
     
-lambdas = np.array(args.lambdas)
-divmins = np.array(args.divmins)
+
+divmins = args.divmins
 
 #######
 
@@ -145,41 +147,73 @@ def add_unary_costs(cfn,vars_todo, sols, lambdas):
 output_file.write("# " + args.input + "\t" + args.sols + "\tdivmin" + str(args.divmins) + '\n')
 
 tb2log="tmp.tb2"
-tb2_cmd = toulbar2 + cfn_tmp_file + ' -w="tmp.sol" | tee > ' + tb2log
-####### TODO
-dual_lb = None
-dual_best = None
-b=1
-#######
+tb2_cmd = toulbar2 + cfn_tmp_file + ' -s -w="tmp.sol" | tee > ' + tb2log
 
-for t in range(args.niter):
-    output_file.write("# Iteration " + str(t+1) + " with lambdas="+ str(lambdas) + '\n')
-    cfn_tmp = add_unary_costs(cfn, ["Q1","Q2","Q3","Q4"], sols, lambdas)
+def stepsize(t, grad):
+    h = 0.001
+    return(cst_step_size(h))
+
+def cst_step_size(h):
+    return(h)
+
+def norm(u):
+    return(sqrt(np.sum(np.array(u) ** 2)))
+
+def cst_step_length(h, grad):
+    return(h/norm(grad))
+
+def squaresum_stepsize(t,a,b):
+    return(a/(b+t))
+
+def nonsum_stepsize(t,a):
+    return(a/sqrt(t))
+
+def nonsum_steplength(t,grad,a):
+    return(a/(sqrt(t)*norm(grad)))
+
+def polyak(t, ql, qbest, grad, a):
+    return((qbest - ql + (a/sqrt(t)))/np.sum(np.array(grad) ** 2))
+
+# Choose lambda_1
+lambdas = args.lambdas
+qbest = None
+
+
+for t in range(1,args.niter):
+    # Write in output file
+    output_file.write("Iteration: " + str(t+1) + '\n')
+    output_file.write("lambda="+ str(lambdas) + '\n')
+    # Compute q(lambda_t) & x(lambda_t)
+    vars_todo = list(cfn['variables'].keys())
+    cfn_tmp = add_unary_costs(cfn, vars_todo, sols, lambdas)
     write_cfn(cfn_tmp, cfn_tmp_file)
     execute("Iteration " + str(t+1), tb2_cmd)
-    (dual_cost, sol)=get_optimum(tb2log)
-    output_file.write(str(sol) + '\n')
-    dual_cost += np.sum(lambdas*divmins)
-    if dual_best ==None:
-        dual_best=dual_cost
+    (ql, xl)=get_optimum(tb2log)
+    for j in range(nsols):
+        ql += lambdas[j]*divmins[j]
+    if qbest == None:
+        qbest = ql
     else:
-        dual_best = max(dual_best, dual_cost)
-    output_file.write(dual_cost + '\n')
-    alpha = (1+nsols)/(t+nsols)
-    subgrad =  divmins
+        qbest = max(qbest, ql)
+    # Write results in output file
+    output_file.write("Solution: " + str(xl) + '\n')
+    output_file.write("q(lambda)= " + str(ql) + '\n')
+    output_file.write("q_best= " + str(qbest) + '\n')
+    # Compute a super gradient u(lambda)
+    ut = divmins
     for j, solj in enumerate(sols):
         for var in vars_todo:
             var_index = list(cfn['variables'].keys()).index(var)
             domain = get_domain(var, cfn)
-            subgrad[j] -= dissim(sol[var_index], solj[var_index], domain, msim)
-    dual_approx = (1+b)*dual_best
-    if(dual_best == dual_cost):
-        b *= 1.5
-    else:
-        b /= 1.5        
-    stepsize = alpha*(dual_approx - dual_cost)/np.sum(subgrad**2)
+            ut[j] -= dissim(xl[var_index], solj[var_index], domain, msim)
+    output_file.write("supergradient= " + str(ut) + '\n')
+    if ut == [0]*nsols:
+        output_file.write("Optimum reached in " + str(t) + "steps: " + str(xl))
+        sys.exit(0)
+    # Update lambda
+    at = stepsize(t)
     for j in range(len(lambdas)):
-        lambdas[j] = max(0, lambdas[j]+stepsize*subgrad[j])
+        lambdas[j] = max(0, lambdas[j]+at*ut[j])
     
 
 
