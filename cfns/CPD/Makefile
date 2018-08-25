@@ -30,11 +30,11 @@ superclean: clean
 
 tb2:
 	@printf "$(OK_COLOR)Cloning toulbar2 $(NO_COLOR)\n"
-	git clone http://mulcyber.toulouse.inra.fr/anonscm/git/toulbar2/toulbar2.git $(PYPATH)/tb2
+	git clone https://github.com/toulbar2/toulbar2.git $(PYPATH)/tb2
 
 toulbar2: tb2 -lgmp -lboost_graph -lboost_iostreams 
 	@printf "$(OK_COLOR)Compiling toulbar2 $(NO_COLOR)\n"
-	cd $(PYPATH)/tb2/toulbar2 && \
+	cd $(PYPATH)/tb2 && \
 	git checkout cpd && \
 	git checkout `git describe --abbrev=0` && \
 	mkdir -p build && \
@@ -42,7 +42,7 @@ toulbar2: tb2 -lgmp -lboost_graph -lboost_iostreams
 	cmake .. && \
 	make -j$(NJOBS)
 	cd $(PYPATH) && \
-	ln -s ./tb2/toulbar2/build/bin/*/toulbar2 toulbar2
+	ln -s ./tb2/build/bin/*/toulbar2 toulbar2
 
 showpars:
 	@printf "Fixed seed: "
