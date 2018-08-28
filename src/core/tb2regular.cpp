@@ -50,7 +50,7 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     , intDLinkStore(arity_in * 10) // TODO something less naive would be good
     , lb(MIN_COST)
 {
-    static const bool debug{ true };
+    static const bool debug{ false };
 
     Cost weight;
     file >> weight; // violation cost
@@ -93,12 +93,7 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
         alpha[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
         beta[layer].resize(layerWidth[layer], MAX_COST);
         alphap[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
-<<<<<<< HEAD
-        //Predp[layer].resize(layerWidth[layer], -1);
-        //    betap[layer].resize(layerWidth[layer],MAX_COST);
-=======
         //    betap[layer].resize(layerWidth[layer], MAX_COST);
->>>>>>> 1292f5dfc3cb7f4205c9e72423cc3ab17de948c4
 
         int corrNext = max(0, distBound - get_layer_num() + layer + 1);
 
@@ -256,7 +251,7 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA&
     , intDLinkStore(arity_in * 10) // TODO something less naive would be good
     , lb(MIN_COST)
 {
-    static const bool debug{ true };
+    static const bool debug{ false };
 
     // Copy the scope and DAC order it
     DACScope.assign(scope_in, scope_in + arity_in);
@@ -409,7 +404,7 @@ std::ostream& WRegular::printstate(std::ostream& os)
 
 void WRegular::projectLB(Cost c)
 {
-    static const bool debug{ true };
+    static const bool debug{ false };
 
     if (debug)
         cout << "Project " << c << " on lb" << endl;
@@ -435,7 +430,7 @@ void WRegular::projectLB(Cost c)
 
 void WRegular::extend(int idx, unsigned val, Cost c)
 {
-    static const bool debug{ true };
+    static const bool debug{ false };
 
     EnumeratedVariable* x = DACScope[idx];
 
@@ -458,7 +453,7 @@ void WRegular::extend(int idx, unsigned val, Cost c)
 
 void WRegular::project1(int idx, unsigned val, Cost c)
 {
-    static const bool debug{ true };
+    static const bool debug{ false };
 
     EnumeratedVariable* x = DACScope[idx];
 
@@ -474,7 +469,7 @@ void WRegular::project1(int idx, unsigned val, Cost c)
 bool WRegular::checkSupportoic()
 {
     //always called after update of alphap values
-    static const bool debug{ true };
+    static const bool debug{ false };
 
     if (Suppoic == -1) {
         return false;
@@ -490,7 +485,7 @@ bool WRegular::checkSupportoic()
 
 void WRegular::forwardoic()
 {
-    static const bool debug{ true };
+    static const bool debug{ false };
 
     if (debug) {
         cout << "Entering forwardoic between layers " << layer_min << " and " << layer_max << endl;
@@ -594,7 +589,7 @@ void WRegular::forwardoic()
 
 void WRegular::backwardb()
 {
-    static const bool debug{ true };
+    static const bool debug{ false };
 
     if (debug) {
         cout << "Entering backwardb between layers " << layer_max << " and " << layer_min << endl;
@@ -685,7 +680,7 @@ bool WRegular::checkSupportac(int layer, unsigned val)
 void WRegular::forwarda()
 {
 
-    static const bool debug{ true };
+    static const bool debug{ false };
 
     if (debug)
         cout << "Entering ForwardAC" << endl;
@@ -825,7 +820,7 @@ Cost WRegular::eval(const String& s)
 
 void WRegular::assign(int idx)
 {
-    static const bool debug{ true };
+    static const bool debug{ false };
 
     auto* x = scope[idx];
 
@@ -846,7 +841,7 @@ void WRegular::assign(int idx)
 
 void WRegular::remove(int idx)
 {
-    static const bool debug{ true };
+    static const bool debug{ false };
 
     if (debug) {
         cout << "In remove " << idx << endl;
@@ -872,7 +867,7 @@ void WRegular::decrease(int idx)
 
 void WRegular::projectFromZero(int idx)
 {
-    static const bool debug{ true };
+    static const bool debug{ false };
 
     if (!connected(idx))
         return;
