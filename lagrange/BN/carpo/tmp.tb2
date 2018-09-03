@@ -1,0 +1,17 @@
+Warning! toulbar2 was compiled in debug mode and it can be very slow...
+c /home/mruffini/softs/toulbar2-diverse/build/bin/Linux/toulbar2  version : 1.0.0-master-81e232d-tainted (1535017615), copyright (c) 2006-2018, toulbar2 team
+loading cfn file: carpo_tmp.cfn
+Read 61 variables, with 4 values at most, and 108 cost functions, with maximum arity 6.
+Cost function decomposition time : 0.000567 seconds.
+Preprocessing time: 0.014965 seconds.
+18 unassigned variables, 42 values in all current domains (med. size:2, max size:4) and 33 non-unary cost functions (med. degree:5)
+Initial lower and upper bounds: [3.221643, 226.572957[ 98.578%
+New solution: 6.309333 (0 backtracks, 4 nodes, depth 5)
+ 1 1 0 0 0 0 0 0 0 0 1 0 1 1 0 0 1 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 1 0 0 0 1 1 1 0 0 0 1 0 0 0 0 0 0 0 0 0
+Optimality gap: [4.579018, 6.309333[ 27.425 % (4 backtracks, 8 nodes)
+New solution: 4.579018 (4 backtracks, 10 nodes, depth 1)
+ 1 1 0 0 0 0 0 0 0 0 1 0 1 1 0 0 1 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0
+Optimality gap: [4.579018, 4.579018[ 0.000 % (4 backtracks, 10 nodes)
+Node redundancy during HBFS: 20.000 %
+Optimum: 4.579018 in 4 backtracks and 10 nodes ( 6 removals by DEE) and 0.016 seconds.
+end.

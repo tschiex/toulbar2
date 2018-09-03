@@ -1,0 +1,4 @@
+Warning! toulbar2 was compiled in debug mode and it can be very slow...
+c /home/mruffini/softs/toulbar2-diverse/build/bin/Linux/toulbar2  version : 1.0.0-master-81e232d-tainted (1535017615), copyright (c) 2006-2018, toulbar2 team
+loading cfn file: A-1A81_tmp.cfn
+Read 109 variables, with 414 values at most, and 1358 cost functions, with maximum arity 2.

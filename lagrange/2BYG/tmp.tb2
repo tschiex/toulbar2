@@ -1,0 +1,24 @@
+Warning! toulbar2 was compiled in debug mode and it can be very slow...
+c /home/mruffini/softs/toulbar2-diverse/build/bin/Linux/toulbar2  version : 1.0.0-master-81e232d-tainted (1535017615), copyright (c) 2006-2018, toulbar2 team
+loading cfn file: A-2BYG_tmp.cfn
+Read 97 variables, with 414 values at most, and 1132 cost functions, with maximum arity 2.
+Cost function decomposition time : 0.07384 seconds.
+Reverse DAC lower bound: 490024300 (+0.0986437%)
+Preprocessing time: 37.5282 seconds.
+62 unassigned variables, 7337 values in all current domains (med. size:20, max size:414) and 461 non-unary cost functions (med. degree:14)
+Initial lower and upper bounds: [-204.059669, 154459.023513[ 100.132%
+c 2097152 Bytes allocated for long long stack.
+c 4194304 Bytes allocated for long long stack.
+c 8388608 Bytes allocated for long long stack.
+c 16777216 Bytes allocated for long long stack.
+c 33554432 Bytes allocated for long long stack.
+c 67108864 Bytes allocated for long long stack.
+New solution: -201.744723 (0 backtracks, 87 nodes, depth 88)
+ 275 145 14 289 83 20 98 3 0 5 0 2 4 0 0 0 0 0 0 2 27 0 0 0 0 0 0 0 0 251 91 0 0 8 0 26 1 1 0 8 0 0 0 0 0 0 0 0 7 7 4 0 3 1 0 0 0 0 292 1 107 0 0 1 0 1 9 0 0 7 0 9 11 13 0 0 0 0 0 4 4 0 14 9 29 85 0 126 121 0 0 0 78 1 52 85 313
+Optimality gap: [-202.283860, -201.744723[ 0.267 % (80 backtracks, 167 nodes)
+New solution: -202.283860 (80 backtracks, 187 nodes, depth 3)
+ 275 145 14 289 83 20 98 1 0 5 0 2 4 0 0 0 0 0 0 2 27 0 0 0 0 0 0 0 0 251 91 0 0 186 0 29 1 0 0 8 0 0 0 0 0 0 0 0 7 7 4 0 3 1 0 0 0 0 19 1 107 0 0 1 0 1 9 0 0 7 0 9 11 13 0 0 0 0 0 4 4 0 14 9 29 85 0 324 121 0 0 0 78 1 52 85 313
+Optimality gap: [-202.283860, -202.283860[ 0.000 % (80 backtracks, 187 nodes)
+Node redundancy during HBFS: 9.626 %
+Optimum: -202.283860 in 80 backtracks and 187 nodes ( 2544 removals by DEE) and 87.641 seconds.
+end.

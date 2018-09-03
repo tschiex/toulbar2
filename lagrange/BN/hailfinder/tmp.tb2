@@ -1,0 +1,12 @@
+Warning! toulbar2 was compiled in debug mode and it can be very slow...
+c /home/mruffini/softs/toulbar2-diverse/build/bin/Linux/toulbar2  version : 1.0.0-master-81e232d-tainted (1535017615), copyright (c) 2006-2018, toulbar2 team
+loading cfn file: hailfinder_tmp.cfn
+Read 58 variables, with 234 values at most, and 1 cost functions, with maximum arity 1.
+Cost function decomposition time : 1e-06 seconds.
+Preprocessing time: 0.001536 seconds.
+0 unassigned variables, 0 values in all current domains (med. size:0, max size:234) and 0 non-unary cost functions (med. degree:0)
+Initial lower and upper bounds: [-29.283944, -29.283943[ 0.000%
+New solution: -29.283944 (0 backtracks, 0 nodes, depth 1)
+ 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+Optimum: -29.283944 in 0 backtracks and 0 nodes ( 409 removals by DEE) and 0.002 seconds.
+end.

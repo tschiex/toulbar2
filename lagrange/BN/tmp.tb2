@@ -1,0 +1,17 @@
+Warning! toulbar2 was compiled in debug mode and it can be very slow...
+c /home/mruffini/softs/toulbar2-diverse/build/bin/Linux/toulbar2  version : 1.0.0-master-81e232d-tainted (1535017615), copyright (c) 2006-2018, toulbar2 team
+loading cfn file: alarm/alarm_tmp.cfn
+Read 37 variables, with 4 values at most, and 62 cost functions, with maximum arity 5.
+Cost function decomposition time : 0.000516 seconds.
+Preprocessing time: 0.01219 seconds.
+13 unassigned variables, 39 values in all current domains (med. size:3, max size:4) and 20 non-unary cost functions (med. degree:4)
+Initial lower and upper bounds: [0.690205, 82.815216[ 99.167%
+New solution: 2.600146 (0 backtracks, 3 nodes, depth 4)
+ 1 1 1 1 1 1 1 1 2 1 2 1 2 1 2 1 2 2 0 2 2 0 1 1 1 1 1 1 1 0 1 2 2 1 2 2 0
+Optimality gap: [2.326727, 2.600146[ 10.516 % (3 backtracks, 6 nodes)
+New solution: 2.326727 (3 backtracks, 7 nodes, depth 1)
+ 1 1 1 1 1 1 1 1 2 1 2 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 1 0 1 2 2 1 2 2 0
+Optimality gap: [2.326727, 2.326727[ 0.000 % (3 backtracks, 7 nodes)
+Node redundancy during HBFS: 14.286 %
+Optimum: 2.326727 in 3 backtracks and 7 nodes ( 2 removals by DEE) and 0.013 seconds.
+end.

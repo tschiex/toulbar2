@@ -59,7 +59,7 @@ parser.add_argument("--cpd", action="store_true", default=False,
                     help="Computational Protein Design (for sim matrix)")
 
 # Stepsize
-parser.add_argument("--step", default="cst_step_size",
+parser.add_argument("--step", default="cst_stepsize",
                     help="Stepsize strategy: cst_stepsize, cst_steplength, squaresum_stepsize, nonsum_stepsize, nonsum_steplength, polyak")
 parser.add_argument("--stepparam", default=0.1, type=float,
                     help="Parameter for the step size")
@@ -97,8 +97,6 @@ cfn_tmp_file = name + "_tmp.cfn"
 
 output_file = open(args.output, 'w')
 
-
-
 if args.msim != None:
     msim = read_sim_mat(args.msim)
 else:
@@ -131,14 +129,18 @@ def add_unary_costs(cfninit, vars_todo, sols, lambdas):
                 if args.cpd:
                     for d in range(n_vals):
                         for sol_idx, sol in enumerate(sols):
-                            print(args.lambdas[sol_idx])
                             cfn['functions'][f_name]['costs'][d] = cfn['functions'][f_name]['costs'][d] + \
-                                                    Decimal(-args.lambdas[sol_idx] * dissim(domain[d][0], sol[var_index][0], AAs, msim))
+                                                                   Decimal(-args.lambdas[sol_idx] * dissim(domain[d][0],
+                                                                                                           sol[
+                                                                                                               var_index][
+                                                                                                               0], AAs,
+                                                                                                           msim))
                 else:
                     for d in range(n_vals):
                         for sol_idx, sol in enumerate(sols):
                             cfn['functions'][f_name]['costs'][d] = cfn['functions'][f_name]['costs'][d] + \
-                                                    Decimal(-args.lambdas[sol_idx] * dissim(d, sol[var_index], domain, msim))
+                                                                   Decimal(-args.lambdas[sol_idx] * dissim(d, sol[
+                                                                       var_index], domain, msim))
     while (vars_todo != []):
         var = vars_todo.pop()
         domain = get_domain(var, cfn)
@@ -152,12 +154,16 @@ def add_unary_costs(cfninit, vars_todo, sols, lambdas):
             for d in range(n_vals):
                 for sol in sols:
                     cfn['functions'][f_name]['costs'][d] = cfn['functions'][f_name]['costs'][d] + \
-                              Decimal(-args.lambdas[sol_idx] * dissim(domain[d][0], sol[var_index][0], AAs, msim))
+                                                           Decimal(-args.lambdas[sol_idx] * dissim(domain[d][0],
+                                                                                                   sol[var_index][0],
+                                                                                                   AAs, msim))
         else:
             for d in range(n_vals):
                 for sol_idx, sol in enumerate(sols):
                     cfn['functions'][f_name]['costs'][d] = cfn['functions'][f_name]['costs'][d] + \
-                                Decimal(-args.lambdas[sol_idx] * dissim(d, sol[var_index], AAs, msim))
+                                                           Decimal(
+                                                               -args.lambdas[sol_idx] * dissim(d, sol[var_index], AAs,
+                                                                                               msim))
 
     return cfn
 
@@ -221,7 +227,7 @@ qbest = None
 qbest_list = []
 vars = list(cfn['variables'].keys())
 
-for t in range(1, args.niter):
+for t in range(1, args.niter + 1):
     # Write in output file
     output_file.write("Iteration: " + str(t) + '\n')
     output_file.write("lambda=" + str(lambdas) + '\n')
@@ -231,8 +237,6 @@ for t in range(1, args.niter):
     write_cfn(cfn_tmp, cfn_tmp_file)
     execute("Iteration " + str(t), tb2_cmd)
     (ql, xl) = get_optimum(tb2log)
-    print(ql)
-    print(xl)
     for j in range(nsols):
         ql += lambdas[j] * divmins[j]
     if qbest == None:
@@ -252,27 +256,31 @@ for t in range(1, args.niter):
     # Compute a super gradient u(lambda)
     ut = copy.deepcopy(divmins)
     for j, solj in enumerate(sols):
-        print('solution' + str(j))
         for var in vars:
             var_index = list(cfn['variables'].keys()).index(var)
             domain = get_domain(var, cfn)
-            ut[j] -= dissim(xl[var_index], solj[var_index], domain, msim)
+            if args.cpd:
+                ut[j] -= dissim(domain[xl[var_index]][0], solj[var_index], AAs, msim)
+            else:
+                ut[j] -= dissim(xl[var_index], solj[var_index], domain, msim)
+    if ql == qbest:
+        min_div = min(np.array(divmins) - np.array(ut))
     output_file.write("supergradient= " + str(ut) + '\n')
     if ut == [0] * nsols:
         output_file.write("Optimum reached in " + str(t) + "steps: " + str(xl) + '\n')
         output_file.write(
-            "Best for lambda= " + str(lbest) + " qbest= " + str(qbest) + " and sol:\n" + str(xbest) + '\n')
+            "Best for lambda= " + ','.join(str(i) for i in lbest) + " qbest= " + str(qbest) + " min_div= " + str(
+                min_div) + " and sol:\n" + str(xbest) + '\n')
         output_file.write("qbest_list: \n" + str(qbest_list))
         output_file.close()
         sys.exit(0)
     # Update lambda
     at = stepsize(t, ql, qbest, ut)
-    print("at " + str(at))
-    print("grad " + str(ut))
     for j in range(len(lambdas)):
         lambdas[j] = max(0, lambdas[j] + at * ut[j])
 
-output_file.write("Best for lambda= " + str(lbest) + " qbest= " + str(qbest) + " and sol:\n" + str(xbest) + '\n')
+output_file.write("Best for lambda= " + ','.join(str(i) for i in lbest) + " qbest= " + str(qbest) + " min_div= " + str(
+    min_div) + " and sol:\n" + str(xbest) + '\n')
 
 output_file.write("qbest_list: \n" + str(qbest_list))
 output_file.close()

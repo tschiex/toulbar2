@@ -1,0 +1,21 @@
+Warning! toulbar2 was compiled in debug mode and it can be very slow...
+c /home/mruffini/softs/toulbar2-diverse/build/bin/Linux/toulbar2  version : 1.0.0-master-81e232d-tainted (1535017615), copyright (c) 2006-2018, toulbar2 team
+loading cfn file: mildew_tmp.cfn
+Read 35 variables, with 100 values at most, and 54 cost functions, with maximum arity 4.
+Cost function decomposition time : 0.00109 seconds.
+Preprocessing time: 2.68291 seconds.
+32 unassigned variables, 411 values in all current domains (med. size:4, max size:100) and 75 non-unary cost functions (med. degree:4)
+Initial lower and upper bounds: [18.091566, 146.846180[ 87.680%
+c 2097152 Bytes allocated for long long stack.
+c 4194304 Bytes allocated for long long stack.
+New solution: 19.670425 (0 backtracks, 7 nodes, depth 8)
+ 0 0 1 1 0 8 6 0 0 2 1 0 8 0 0 2 2 0 8 0 0 1 2 0 8 1 0 3 0 2 0 2 2 0 0
+Optimality gap: [18.184053, 19.670425[ 7.556 % (7 backtracks, 14 nodes)
+Optimality gap: [18.196754, 19.670425[ 7.492 % (7 backtracks, 19 nodes)
+New solution: 18.894489 (7 backtracks, 25 nodes, depth 3)
+ 0 0 1 1 0 8 6 0 0 2 2 0 8 0 0 2 2 0 8 0 0 1 2 0 8 1 0 3 0 2 0 2 2 0 0
+Optimality gap: [18.377629, 18.894489[ 2.736 % (9 backtracks, 27 nodes)
+Optimality gap: [18.894489, 18.894489[ 0.000 % (9 backtracks, 28 nodes)
+Node redundancy during HBFS: 35.714 %
+Optimum: 18.894489 in 9 backtracks and 28 nodes ( 2 removals by DEE) and 3.258 seconds.
+end.

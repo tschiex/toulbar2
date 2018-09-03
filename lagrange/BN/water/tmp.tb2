@@ -1,0 +1,14 @@
+Warning! toulbar2 was compiled in debug mode and it can be very slow...
+c /home/mruffini/softs/toulbar2-diverse/build/bin/Linux/toulbar2  version : 1.0.0-master-81e232d-tainted (1535017615), copyright (c) 2006-2018, toulbar2 team
+loading cfn file: water_tmp.cfn
+Read 32 variables, with 4 values at most, and 56 cost functions, with maximum arity 6.
+Cost function decomposition time : 0.000923 seconds.
+Preprocessing time: 0.160894 seconds.
+23 unassigned variables, 67 values in all current domains (med. size:3, max size:4) and 69 non-unary cost functions (med. degree:7)
+Initial lower and upper bounds: [7.916908, 102.688598[ 92.290%
+New solution: 8.086420 (0 backtracks, 9 nodes, depth 10)
+ 1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 1 1 1 1 1 0 1 1 1 1 1 1 1 0 1 1 1
+Optimality gap: [8.086420, 8.086420[ 0.000 % (9 backtracks, 18 nodes)
+Node redundancy during HBFS: 0.000 %
+Optimum: 8.086420 in 9 backtracks and 18 nodes ( 4 removals by DEE) and 0.164 seconds.
+end.

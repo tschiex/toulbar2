@@ -71,8 +71,6 @@ def read_sols(sol_filename):
 
 
 def sols_to_cpd_sols(sols, cfn):
-    print("Sol length:" + str(len(sols[0])))
-    print("nvars: " + str(len(list(cfn['variables'].values()))))
     for sol in sols:
         for pos in range(len(sol)):
             sol[pos] = list(cfn['variables'].values())[pos][sol[pos]][0]
@@ -172,7 +170,6 @@ def get_optimum(tb2log):
             s = re.split(' ', lines[i])
             return (float(s[1]), seq)
     return (None, None)
-
 
 
 
