@@ -79,3 +79,4 @@ for k in range(1, args.nsols):
 
 with open(sols_filename, 'a') as f:
     f.write("min_divs= " + str(min_divs))
+    f.close()

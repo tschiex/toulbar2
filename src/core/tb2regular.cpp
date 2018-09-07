@@ -43,7 +43,7 @@ bool DACCompare(const EnumeratedVariable* v1, const EnumeratedVariable* v2)
 // ---------------------------------------------------
 // ------------ The WRegular class -------------------
 // ---------------------------------------------------
-#if true
+#if false
 // A counting one, reads a vector of values and a min/max distance
 WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istream& file)
     : AbstractNaryConstraint(wcsp, scope_in, arity_in)
@@ -156,7 +156,8 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
 
     allArcs.resize(get_layer_num());
     arcsAtLayerValue.resize(get_layer_num());
-    Supp.resize(get_layer_num());
+    Suppac.resize(get_layer_num());
+    Suppoic = -1;
     delta.resize(get_layer_num());
     alpha.resize(get_layer_num() + 1);
     beta.resize(get_layer_num() + 1);
@@ -174,9 +175,36 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
             solutions[s].push_back(val);
         }
     }
+
+    vector<vector<pair<vector<int>, vector<pair<Value, int> > > > > solutionTree(arity_ + 1);
+    solutionTree[arity_].resize(1);
+    solutionTree[arity_][0].first.resize(nbSols);
+    iota(begin(solutionTree[arity_][0].first), end(solutionTree[arity_][0].first), 0);
+    vector<int> sols(0);
+    for (int i = arity_; i > 0; i--) {
+        solutionTree[i - 1].resize(0);
+        int newNodeId = 0;
+        EnumeratedVariable* x = DACScope[i - 1];
+        for (pair<vector<int>, vector<pair<Value, int> > >& node : solutionTree[i]) {
+            for (auto itval = x->begin(); itval != x->end(); ++itval) {
+                sols.resize(0);
+                for (int s : node.first) {
+                    if (solutions[s][i - 1] == *itval) {
+                        sols.push_back(s);
+                    }
+                }
+                if (!sols.empty()) {
+                    solutionTree[i - 1].push_back(pair<vector<int>, vector<pair<Value, int> > >(sols, 0));
+                    node.second.push_back(pair<Value, int>(*itval, newNodeId));
+                    newNodeId++;
+                }
+            }
+        }
+    }
+    cout << "Solution tree ok" << endl;
     //TODO A fixed depth trie would be great!
     map<vector<int>, int> DistCountsA;
-    vector<int> initCount(arity_, 0);
+    vector<int> initCount(solutionTree[0].size(), 0);
     DistCountsA[initCount] = 0;
     map<vector<int>, int> DistCountsB;
     map<vector<int>, int>& prevDistCounts = DistCountsA;
@@ -185,26 +213,37 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     // Create counting arcs
     // Would need to be minimized on the final layers
     for (int layer = 0; layer < get_layer_num(); layer++) {
+        cout << "building layer " << layer << endl;
         conflictWeights.push_back(0);
-        delta[layer].resize(DACScope[layer]->getDomainInitSize(), MIN_COST);
-        alpha[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
-        beta[layer].resize(layerWidth[layer], MAX_COST);
-        alphap[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
-        //    betap[layer].resize(layerWidth[layer], MAX_COST);
 
         int arcRef = 0;
         arcsAtLayerValue[layer].resize(DACScope[layer]->getDomainInitSize(), &intDLinkStore);
-        Supp[layer].resize(DACScope[layer]->getDomainInitSize(), -1);
+        Suppac[layer].resize(DACScope[layer]->getDomainInitSize(), -1);
 
-        vector<int> nextCount(nbSols);
         int nextNode;
         Cost toPay = MIN_COST;
 
         for (auto const& nodeState : prevDistCounts) {
+            cout << "nodeState ";
+            for (auto toto : nodeState.first) {
+                cout << toto << " ";
+            }
+            cout << endl;
             for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
-                for (int s = 0; s < nbSols; s++) {
-                    bool different = (val != solutions[s][layer]);
-                    nextCount[s] = min(nodeState.first[s] + different, distBound + 1);
+                vector<int> nextCount(solutionTree[layer + 1].size(), -1);
+                for (int nodeid = 0; nodeid < solutionTree[layer + 1].size(); nodeid++) {
+                    for (auto a : solutionTree[layer + 1][nodeid].second) {
+                        if (nextCount[nodeid] == -1) {
+                            nextCount[nodeid] = nodeState.first[a.second] + (val != a.first);
+                        } else {
+                            if (boundByAbove) {
+                                nextCount[nodeid] = min(nodeState.first[a.second] + (val != a.first), nextCount[nodeid]);
+                            } else {
+                                nextCount[nodeid] = max(nodeState.first[a.second] + (val != a.first), nextCount[nodeid]);
+                            }
+                        }
+                    }
+                    nextCount[nodeid] = min(nextCount[nodeid], distBound + 1);
                 }
                 if (layer != get_layer_num() - 1) {
                     map<vector<int>, int>::iterator it;
@@ -213,8 +252,9 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
                 } else {
                     toPay = MIN_COST;
                     nextNode = 0;
-                    for (int s = 0; s < nbSols; s++) {
-                        if ((nextCount[s] > distBound) ^ boundByAbove) {
+                    assert(layer + 1 == get_layer_num());
+                    for (int nodeid = 0; nodeid < solutionTree[get_layer_num()].size(); nodeid++) {
+                        if ((nextCount[nodeid] > distBound) ^ boundByAbove) {
                             toPay = weight;
                             break;
                         }
@@ -225,6 +265,13 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
                 arcRef++;
             }
         }
+
+        delta[layer].resize(DACScope[layer]->getDomainInitSize(), MIN_COST);
+        alpha[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
+        beta[layer].resize(layerWidth[layer], MAX_COST);
+        alphap[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
+        //    betap[layer].resize(layerWidth[layer], MAX_COST);
+
         if (layer != get_layer_num() - 1)
             layerWidth.push_back(nextDistCounts.size());
         else

@@ -36,7 +36,7 @@ else:
 
 cfn_filename = name + ".cfn.gz"
 cfn = read_cfn_gzip(cfn_filename)
-sols_mdd_filename = name + "_divmin" + str(divmin) + "_nsols2.sols"
+sols_mdd_filename = name + "_divmin" + str(divmin) + "_nsols.sols"
 sol_filename = name + ".gmec"
 
 mult_div_cmd = python_path + "mult_div_regular.py  -i " + cfn_filename + " -o " + sols_mdd_filename + \
@@ -103,7 +103,7 @@ vars = list(cfn['variables'].keys())
 
 def step_plot(step, params, l, divmin, niter):
     for h in params:
-        output_filename = name + "_" + step + "_h" + str(h) + ".lag"
+        output_filename = name + "_" + step + "_h" + str(h) + "2.lag"
         cmd = python_path + "divmin_lagrangian.py -i " + cfn_filename + " -o " + output_filename + \
               " -s " + sol_filename + " -l " + str(l) + " --divmins " + str(divmin) + \
               " --niter " + str(niter) + " --step " + step + " --stepparam " \
@@ -130,10 +130,13 @@ def step_plot(step, params, l, divmin, niter):
 
 
 # Constant step size
-
+"""
 step_plot("cst_stepsize", [0.05, 0.01, 0.005, 0.001], 0, divmin, args.niter)
 step_plot("cst_steplength", [0.05, 0.01, 0.005, 0.001], 0, divmin, args.niter)
 step_plot("squaresum_stepsize", [0.1, 1, 10], 0, divmin, args.niter)
 step_plot("nonsum_stepsize", [0.1, 1, 10], 0, divmin, args.niter)
 step_plot("nonsum_steplength", [0.1, 1, 10], 0, divmin, args.niter)
 step_plot("polyak", [0.1, 1, 10], 0, divmin, args.niter)
+"""
+
+step_plot("squaresum_stepsize", [0.1], 0, divmin, args.niter)
