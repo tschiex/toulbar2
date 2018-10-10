@@ -149,6 +149,11 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     file >> boundByAbove; // max dist or min dist
     int distBound;
     file >> distBound; // the actual bound
+    string matrixName;
+    file >> matrixName;
+    if (matrixName != "identity") {
+        readPSMatrix(matrixName.c_str());
+    }
 
     // Copy the scope and DAC order it
     DACScope.assign(scope_in, scope_in + arity_in);
@@ -396,6 +401,38 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA&
 
 WRegular::~WRegular()
 {
+}
+
+void WRegular::readPSMatrix(const char* filename)
+{
+    ifstream file;
+    file.open(filename);
+
+    if (!file.is_open()) {
+        cerr << "Could not open PSM file, aborting." << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    string s;
+    int minscore = std::numeric_limits<int>::max();
+
+    do
+        getline(file, s); //Skip comments and AA line
+    while (s[0] == '#');
+
+    for (int i = 0; i < 24; i++) {
+        file >> s; // skip AA
+        for (int j = 0; j < 24; j++) {
+            file >> PSM[i][j];
+            PSM[i][j] = -PSM[i][j];
+            minscore = min(minscore, PSM[i][j]);
+        }
+    }
+
+    // renormalize to have only penalties
+    for (int i = 0; i < 24; i++)
+        for (int j = 0; j < 24; j++)
+            PSM[i][j] -= minscore;
 }
 
 // Export the unrolled automata for debugging purposes //
@@ -1505,9 +1542,9 @@ void WRegular::projectFromZero(int idx)
 //}
 }
 }
-* /
+*/
 
-    /* Local Variables: */
+/* Local Variables: */
 /* c-basic-offset: 4 */
 /* tab-width: 4 */
 /* indent-tabs-mode: nil */
