@@ -145,12 +145,17 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
 
     Cost weight;
     file >> weight; // violation cost
-    bool boundByAbove;
-    file >> boundByAbove; // max dist or min dist
-    int distBound;
-    file >> distBound; // the actual bound
     string matrixName;
     file >> matrixName;
+    cout << "Matrix name " << matrixName << endl;
+    bool boundByAbove;
+    file >> boundByAbove; // max dist or min dist
+    cout << "boundbyabove " << boundByAbove << endl;
+    int distBound;
+    file >> distBound; // the actual bound
+    cout << "distBound " << distBound << endl;
+    int maxWidth; // max number of nodes in a layer
+    file >> maxWidth;
     if (matrixName != "identity") {
         readPSMatrix(matrixName.c_str());
     }
@@ -206,7 +211,6 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
             }
         }
     }
-    cout << "Solution tree ok" << endl;
     //TODO A fixed depth trie would be great!
     map<vector<int>, int> DistCountsA;
     vector<int> initCount(solutionTree[0].size(), 0);
@@ -218,12 +222,15 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     // Create counting arcs
     // Would need to be minimized on the final layers
     for (int layer = 0; layer < get_layer_num(); layer++) {
-        cout << "building layer " << layer << endl;
+        if (debug)
+            cout << "building layer " << layer << endl;
         conflictWeights.push_back(0);
 
         int arcRef = 0;
         arcsAtLayerValue[layer].resize(DACScope[layer]->getDomainInitSize(), &intDLinkStore);
         Suppac[layer].resize(DACScope[layer]->getDomainInitSize(), -1);
+
+        EnumeratedVariable* x = DACScope[layer];
 
         int nextNode;
         Cost toPay = MIN_COST;
@@ -239,12 +246,25 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
                 for (int nodeid = 0; nodeid < solutionTree[layer + 1].size(); nodeid++) {
                     for (auto a : solutionTree[layer + 1][nodeid].second) {
                         if (nextCount[nodeid] == -1) {
-                            nextCount[nodeid] = nodeState.first[a.second] + (val != a.first);
-                        } else {
-                            if (boundByAbove) {
-                                nextCount[nodeid] = min(nodeState.first[a.second] + (val != a.first), nextCount[nodeid]);
+                            if (matrixName != "identity") {
+                                nextCount[nodeid] = nodeState.first[a.second] + PSM[PSMIdx.find(x->getValueName(val).c_str())][PSMIdx.find(x->getValueName(a.first).c_str())];
                             } else {
-                                nextCount[nodeid] = max(nodeState.first[a.second] + (val != a.first), nextCount[nodeid]);
+                                nextCount[nodeid] = nodeState.first[a.second] + (val != a.first);
+                            }
+                        } else {
+                            // TODO if matrix name ...
+                            if (boundByAbove) {
+                                if (matrixName != "identity") {
+                                    nextCount[nodeid] = min(nodeState.first[a.second] + PSM[PSMIdx.find(x->getValueName(val).c_str())][PSMIdx.find(x->getValueName(a.first).c_str())], nextCount[nodeid]);
+                                } else {
+                                    nextCount[nodeid] = min(nodeState.first[a.second] + (val != a.first), nextCount[nodeid]);
+                                }
+                            } else {
+                                if (matrixName != "identity") {
+                                    nextCount[nodeid] = max(nodeState.first[a.second] + PSM[PSMIdx.find(x->getValueName(val).c_str())][PSMIdx.find(x->getValueName(a.first).c_str())], nextCount[nodeid]);
+                                } else {
+                                    nextCount[nodeid] = max(nodeState.first[a.second] + (val != a.first), nextCount[nodeid]);
+                                }
                             }
                         }
                     }
@@ -268,6 +288,72 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
                 allArcs[layer].push_back(Arc(nodeState.second, val, toPay, nextNode));
                 arcsAtLayerValue[layer][val].push_back(arcRef);
                 arcRef++;
+            }
+        }
+
+        // If n_nodes > maxwidth in current layer,
+        // we merge nodes:
+        int n_nodes = nextDistCounts.size();
+        if (n_nodes > maxWidth) {
+            if (debug)
+                cout << "Relaxing layer " << layer << endl;
+            // select nodes at random
+            int n_merge = nextDistCounts.size() - maxWidth + 1;
+            vector<int> to_merge;
+            for (const auto& node : nextDistCounts)
+                to_merge.push_back(node.second);
+            for (int i = 0; i < n_merge; ++i) {
+                int j = myrand() % (nextDistCounts.size() - i);
+                std::swap(to_merge[i], to_merge[i + j]);
+            }
+            to_merge.resize(n_merge);
+            if (debug) {
+                cout << "Merging nodes ";
+                for (int i : to_merge)
+                    cout << i << " ";
+                cout << endl;
+            }
+            vector<int> newCount(solutionTree[layer + 1].size(), -1);
+            for (int node : to_merge) {
+                auto state = std::find_if(nextDistCounts.begin(), nextDistCounts.end(), [node](const pair<vector<int>, int>& mo) { return mo.second == node; });
+                for (int nodeid = 0; nodeid < solutionTree[layer + 1].size(); nodeid++) {
+                    if (newCount[nodeid] == -1) {
+                        newCount[nodeid] = state->first[nodeid];
+                    } else {
+                        if (boundByAbove) {
+                            newCount[nodeid] = max(newCount[nodeid], state->first[nodeid]);
+                            // we are allowing more solutions - we don't want to remove any solution (!! relaxation)
+                            // exact mdds for each single solution are required
+                        } else {
+                            newCount[nodeid] = min(newCount[nodeid], state->first[nodeid]);
+                        }
+                    }
+                }
+                nextDistCounts.erase(state->first);
+            }
+            // The nodes need to be renumbered - we want nodeids = 0, 1 , ... , maxWidth
+            vector<int> newNodes(n_nodes, -1);
+            map<vector<int>, int>::iterator it;
+            std::tie(it, std::ignore) = nextDistCounts.insert(pair<vector<int>, int>(newCount, to_merge[0]));
+            int newNode = (*it).second;
+
+            int nodeid = 0;
+            for (auto state : nextDistCounts) {
+                if (state.second == newNode) {
+                    newNodes[newNode] = nodeid;
+                    for (auto node : to_merge) {
+                        newNodes[node] = nodeid;
+                    }
+                } else {
+                    newNodes[state.second] = nodeid;
+                }
+                nextDistCounts[state.first] = nodeid;
+                nodeid++;
+            }
+            for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
+                for (ArcRef arc : arcsAtLayerValue[layer][val]) {
+                    allArcs[layer][arc].target = newNodes[allArcs[layer][arc].target];
+                }
             }
         }
 
@@ -391,7 +477,7 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, WFA&
 
     // Now we should clean states with no successors
     // to be put in a separate method later (useful for various creators)
-    for (unsigned int layer = DACScope.size() - 1; layer >= 0; layer--) {
+    for (int layer = DACScope.size() - 1; layer >= 0; layer--) {
     }
     // Init conflict weights
     for (int i = 0; i != arity_; ++i) {
@@ -414,25 +500,28 @@ void WRegular::readPSMatrix(const char* filename)
     }
 
     string s;
-    int minscore = std::numeric_limits<int>::max();
+    //int minscore = std::numeric_limits<int>::max();
 
     do
         getline(file, s); //Skip comments and AA line
     while (s[0] == '#');
 
+    int PSMread[24][24] = { { 0 } };
+
     for (int i = 0; i < 24; i++) {
-        file >> s; // skip AA
+        //file >> s; // skip AA
         for (int j = 0; j < 24; j++) {
-            file >> PSM[i][j];
-            PSM[i][j] = -PSM[i][j];
-            minscore = min(minscore, PSM[i][j]);
+            file >> PSMread[i][j];
         }
     }
 
-    // renormalize to have only penalties
-    for (int i = 0; i < 24; i++)
-        for (int j = 0; j < 24; j++)
-            PSM[i][j] -= minscore;
+    //dissimilarity
+    for (int i = 0; i < 24; i++) {
+        for (int j = 0; j < 24; j++) {
+            PSM[i][j] = PSMread[i][i] - PSMread[i][j];
+            assert(PSM[i][j] >= 0);
+        }
+    }
 }
 
 // Export the unrolled automata for debugging purposes //

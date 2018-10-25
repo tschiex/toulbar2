@@ -138,6 +138,8 @@ private:
         { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1 },
         { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 } };
 
+    string PSMIdx = "ARNDCQEGHILKMFPSTWYVBZX*";
+
     vector<EnumeratedVariable*> DACScope;
     vector<int> layerWidth; //number of nodes at each layer
     vector<vector<Arc> > allArcs; // Arcs for each layer, increasing nodeidx

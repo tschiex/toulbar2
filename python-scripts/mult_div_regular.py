@@ -5,9 +5,6 @@ Created on Wed Jun 20 11:37:53 2018
 
 @author: mruffini
 
-
-
-TODO: CPD -> remove sequence variables with only one aa from cost function.
 """
 
 from collections import OrderedDict
@@ -27,15 +24,17 @@ parser.add_argument("-i", "--input", required=True,
 parser.add_argument("-o", "--output", default=None,
                     help="The name of the output file where the solutions are written")
 parser.add_argument("--divmin", default=1, type=int,
-                    help="Hard constraint - minimum dissimilarity distance from each previous solution\n (divmin differences is accepted ; =0 if no constraint)")
+                    help="Hard constraint - minimum dissimilarity distance from each previous solution\n (divmin "
+                         "differences is accepted ; =0 if no constraint)")
 parser.add_argument("--nsols", default=1, type=int,
                     help="Number of diverse good solutions to compute")
-parser.add_argument("--type", default='mdd',
-                    help="Implementation of regular constraint to use (wregular, compt, sregular, sregulardp or mdd (default))")
+parser.add_argument("--type", default='wregular',
+                    help="Implementation of regular constraint (wregular (default), compt, sregular or sregulardp")
 
 # CPD
 parser.add_argument("--cpd", action="store_true", default=False,
-                    help="Computational Protein Design - addition of sequence variables + possiblity of using a similarity matrix")
+                    help="Computational Protein Design - addition of sequence variables + possiblity of using a "
+                         "similarity matrix")
 parser.add_argument("--msim", default=None,
                     help="Similarity matrix - If None: Hamming distance")
 
@@ -54,7 +53,7 @@ sols_filename = args.output if args.output else \
 cfn_tmp = name + '_divmin' + str(args.divmin) + '_' + args.type + '.tmp.cfn'
 n_vars = len(cfn['variables'])
 
-#### Sequence variables (cpd)
+# Sequence variables (cpd)
 
 if args.cpd:
     # Adding sequence variables
@@ -64,25 +63,6 @@ if args.cpd:
 ############################
 
 # Functions to create a constraint from a previous solution
-
-def add_mdd_dissim(vars_list, sols, sol_name, val_list=None, msim=None):
-    # n_vars = len(vars_list)
-    fname = 'mdd_' + sol_name
-    cfn['functions'][fname] = OrderedDict()
-    cfn['functions'][fname]['scope'] = []
-    for var in vars_list:
-        cfn['functions'][fname]['scope'].append(list(cfn["variables"].keys()).index(var))
-    cfn['functions'][fname]['type'] = 'mdd'
-    cfn['functions'][fname]['params'] = OrderedDict()
-    if (msim != None):
-        print("mdd constraint not available with similarity matrix for now")
-        sys.exit()
-    # Comment on choisit le coût ? Pour l'instant : on prend \top (contrainte dure) mais on peut peut régler ?
-    # pénalité si la contrainte dure n'est pas satisfiable ? 
-    cfn['functions'][fname]['params']['cost'] = float(cfn['problem']['mustbe'][1:]) + 1
-    cfn["functions"][fname]["params"]["above"] = 1
-    cfn["functions"][fname]["params"]["distance"] = args.divmin - 1
-    cfn["functions"][fname]["params"]["labels"] = sols
 
 
 def add_wreg_dissim(vars_list, sol, sol_name, val_list=None, msim=None):
@@ -259,15 +239,8 @@ for k in range(args.nsols):
             add_sreg_dissim(vars_list, sols[0], sol_name, 'sregular', val_list, msim)
         elif args.type == "sregulardp":
             add_sreg_dissim(vars_list, sols[0], sol_name, 'sregulardp', val_list, msim)
-        elif args.type == "mdd":
-            if args.cpd:
-                add_mdd_dissim(vars_list,
-                               [[utils.get_domain(vars_list[var], cfn).index(sols[0][var]) for var in range(n_vars)]],
-                               sol_name, val_list, msim)
-            else:
-                add_mdd_dissim(vars_list, sols, sol_name, val_list, msim)
         else:
-            print("--regular must be mdd, wregular, compt, sregular or sregulardp")
+            print("--regular must be wregular, compt, sregular or sregulardp")
             sys.exit()
     utils.write_cfn(cfn, cfn_tmp)
 
