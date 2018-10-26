@@ -1293,7 +1293,7 @@ void CFNStreamReader::readGlobalCostFunction(vector<int>& scope, const string& f
         { "MST", "" },
         { "smstdp", "" },
         { "wregular", ":nb_states:N:starts:[NC]+:ends:[NC]+:transitions:[NvNC]+" },
-        { "mdd", ":cost:c:matrix:K:above:N:distance:N:max_width:N:labels:[vS]+" },
+        { "mdd", ":cost:c:matrix:K:above:N:distance:N:relax:N:max_width:N:labels:[vS]+" },
         { "walldiff", ":metric:K:cost:c" },
         { "wgcc", ":metric:K:cost:c:bounds:[vNN]+" },
         { "wsame", ":metric:K:cost:c" },

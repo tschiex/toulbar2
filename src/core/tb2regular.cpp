@@ -154,6 +154,8 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     int distBound;
     file >> distBound; // the actual bound
     cout << "distBound " << distBound << endl;
+    int relax;
+    file >> relax; // relaxation method (either 0=none, 1=random, 2=closestNodes or 3=highestLowerBound)
     int maxWidth; // max number of nodes in a layer
     file >> maxWidth;
     if (matrixName != "identity") {
@@ -219,6 +221,9 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     map<vector<int>, int>& prevDistCounts = DistCountsA;
     map<vector<int>, int>& nextDistCounts = DistCountsB;
 
+    alpha[0].resize(1, MIN_COST);
+    beta[0].resize(1, MAX_COST);
+    alphap[0].resize(1, MIN_COST);
     // Create counting arcs
     // Would need to be minimized on the final layers
     for (int layer = 0; layer < get_layer_num(); layer++) {
@@ -294,29 +299,66 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
         // If n_nodes > maxwidth in current layer,
         // we merge nodes:
         int n_nodes = nextDistCounts.size();
-        if (n_nodes > maxWidth) {
+        if (relax != 0 && n_nodes > maxWidth) {
             if (debug)
                 cout << "Relaxing layer " << layer << endl;
             // select nodes at random
-            int n_merge = nextDistCounts.size() - maxWidth + 1;
             vector<int> to_merge;
-            for (const auto& node : nextDistCounts)
-                to_merge.push_back(node.second);
-            for (int i = 0; i < n_merge; ++i) {
-                int j = myrand() % (nextDistCounts.size() - i);
-                std::swap(to_merge[i], to_merge[i + j]);
-            }
-            to_merge.resize(n_merge);
-            if (debug) {
-                cout << "Merging nodes ";
-                for (int i : to_merge)
-                    cout << i << " ";
-                cout << endl;
+            int n_merge = nextDistCounts.size() - maxWidth + 1;
+            if (relax == 1) {
+                for (const auto& node : nextDistCounts)
+                    to_merge.push_back(node.second);
+                for (int i = 0; i < n_merge; ++i) {
+                    int j = myrand() % (nextDistCounts.size() - i);
+                    std::swap(to_merge[i], to_merge[i + j]);
+                }
+                to_merge.resize(n_merge);
+                if (debug) {
+                    cout << "Merging nodes ";
+                    for (int i : to_merge)
+                        cout << i << " ";
+                    cout << endl;
+                }
+            } else if (relax == 2) {
+
+            } else if (relax == 3) {
+                alphap[layer + 1].resize(nextDistCounts.size(), MAX_COST);
+                if (relax == 3) {
+                    for (auto itval = DACScope[layer]->begin(); itval != DACScope[layer]->end(); ++itval) {
+                        for (auto arc : arcsAtLayerValue[layer][*itval]) {
+                            if (alphap[layer + 1][allArcs[layer][arc].get_target()] > alphap[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + x->getCost(x->toValue(*itval))) {
+                                alphap[layer + 1][allArcs[layer][arc].get_target()] = alphap[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + x->getCost(x->toValue(*itval));
+                            }
+                        }
+                    }
+                }
+                // to_merge: sort nodes by decreasing alphap
+                to_merge.resize(alphap[layer + 1].size());
+                iota(to_merge.begin(), to_merge.end(), 0);
+                auto comparator = [this, layer](int a, int b) { return alphap[layer + 1][a] > alphap[layer + 1][b]; };
+                std::sort(to_merge.begin(), to_merge.end(), comparator);
+                to_merge.resize(n_merge);
+                if (debug) {
+                    cout << "alphap[" << layer + 1 << "]=( ";
+                    for (int i : alphap[layer + 1])
+                        cout << i << " ";
+                    cout << ")" << endl;
+                    cout << "Merging nodes ";
+                    for (int i : to_merge)
+                        cout << i << " ";
+                    cout << endl;
+                }
+            } else {
+                cout << "invalid relaxation method in mdd constraint (must be 0 (no relaxation), 1 (random), 2 (closest nodes) or 3 (longest smallest path)" << endl;
+                break;
             }
             vector<int> newCount(solutionTree[layer + 1].size(), -1);
             for (int node : to_merge) {
+                cout << "node " << node << "(" << newCount.size() << ")" << endl;
                 auto state = std::find_if(nextDistCounts.begin(), nextDistCounts.end(), [node](const pair<vector<int>, int>& mo) { return mo.second == node; });
+                assert(state != nextDistCounts.end());
                 for (int nodeid = 0; nodeid < solutionTree[layer + 1].size(); nodeid++) {
+                    cout << "nodeid " << nodeid << endl;
                     if (newCount[nodeid] == -1) {
                         newCount[nodeid] = state->first[nodeid];
                     } else {
@@ -336,7 +378,6 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
             map<vector<int>, int>::iterator it;
             std::tie(it, std::ignore) = nextDistCounts.insert(pair<vector<int>, int>(newCount, to_merge[0]));
             int newNode = (*it).second;
-
             int nodeid = 0;
             for (auto state : nextDistCounts) {
                 if (state.second == newNode) {
@@ -355,13 +396,27 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
                     allArcs[layer][arc].target = newNodes[allArcs[layer][arc].target];
                 }
             }
+            n_nodes = nextDistCounts.size();
         }
-
         delta[layer].resize(DACScope[layer]->getDomainInitSize(), MIN_COST);
-        alpha[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
-        beta[layer].resize(layerWidth[layer], MAX_COST);
-        alphap[layer].resize(layerWidth[layer], (layer ? MAX_COST : MIN_COST));
-        //    betap[layer].resize(layerWidth[layer], MAX_COST);
+        if (layer != get_layer_num() - 1) {
+            alpha[layer + 1].resize(nextDistCounts.size(), MAX_COST);
+            beta[layer + 1].resize(nextDistCounts.size(), MAX_COST);
+            alphap[layer + 1].resize(nextDistCounts.size(), MAX_COST);
+        } else {
+            alpha[layer + 1].resize(1, MAX_COST);
+            beta[layer + 1].resize(1, MIN_COST);
+            alphap[layer + 1].resize(1, MAX_COST);
+        }
+        if (relax == 3) {
+            for (auto itval = DACScope[layer]->begin(); itval != DACScope[layer]->end(); ++itval) {
+                for (auto arc : arcsAtLayerValue[layer][*itval]) {
+                    if (alphap[layer + 1][allArcs[layer][arc].get_target()] > alphap[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + DACScope[layer]->getCost(DACScope[layer]->toValue(*itval))) {
+                        alphap[layer + 1][allArcs[layer][arc].get_target()] = alphap[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + DACScope[layer]->getCost(DACScope[layer]->toValue(*itval));
+                    }
+                }
+            }
+        }
 
         if (layer != get_layer_num() - 1)
             layerWidth.push_back(nextDistCounts.size());
@@ -370,10 +425,6 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
         prevDistCounts.clear();
         swap(prevDistCounts, nextDistCounts);
     }
-
-    alpha[get_layer_num()].resize(layerWidth[get_layer_num()], MAX_COST);
-    beta[get_layer_num()].resize(layerWidth[get_layer_num()], MIN_COST);
-    alphap[get_layer_num()].resize(layerWidth[get_layer_num()], MAX_COST);
 
     if (debug) {
         ofstream os(to_string(this) + "-wregular.dot");
