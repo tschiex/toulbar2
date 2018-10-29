@@ -15,7 +15,7 @@ import time
 import utils
 
 AAs = "ARNDCQEGHILKMFPSTWYV"
-toulbar2 = "/home/mruffini/softs/toulbar2-diverse/build/bin/Linux/toulbar2 "
+toulbar2 = "/home/tschiex/toulbar2-diverse/build/bin/Linux/toulbar2 "
 
 parser = argparse.ArgumentParser()
 

@@ -6,8 +6,8 @@ import os, sys
 import matplotlib.pyplot as plt
 from utils import dissim, read_cfn_gzip, read_sim_mat
 
-python_path = "python3 /home/mruffini/softs/toulbar2-diverse/python-scripts/"
-tb2 = "/home/mruffini/softs/toulbar2-diverse/build/bin/Linux/toulbar2"
+python_path = "python3 /home/tschiex/toulbar2-diverse/python-scripts/"
+tb2 = "/home/tschiex/toulbar2-diverse/build/bin/Linux/toulbar2"
 AAs = "ARNDCQEGHILKMFPSTWYV"
 n_aa = len(AAs)
 AA3to1 = {'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C', 'GLU': 'E', 'GLN': 'Q', 'GLY': 'G', 'HIS': 'H',

@@ -100,7 +100,7 @@ def read_sim_mat(msim_filename):
     return msim
 
 
-# msim = read_sim_mat("/home/mruffini/softs/msd/positive/pars/store/blosum62")
+# msim = read_sim_mat("/home/tschiex/msd/positive/pars/store/blosum62")
 
 def dissim(val1, val2, val_list=None, msim=None):
     if val1 == val2:
@@ -217,7 +217,7 @@ def dissim_cpd_msim(val1, val2, msim):
     return delta
    
 
-#mdissim = msim_to_mdissim(read_sim_mat("/home/mruffini/softs/msd/positive/pars/store/blosum62"))
+#mdissim = msim_to_mdissim(read_sim_mat("/home/tschiex/msd/positive/pars/store/blosum62"))
     
 
 def hamming_dissim_matrix(n_vals):
