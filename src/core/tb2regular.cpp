@@ -188,6 +188,8 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
         }
     }
 
+    // Creating a "Suffix Tree" of all solutions
+    // layer/value/(vecteur des index de solutions "représentées" par le noeud . vecteur des arcs étiquetés par value/target)
     vector<vector<pair<vector<int>, vector<pair<Value, int> > > > > solutionTree(arity_ + 1);
     solutionTree[arity_].resize(1);
     solutionTree[arity_][0].first.resize(nbSols);
@@ -213,6 +215,7 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
             }
         }
     }
+
     //TODO A fixed depth trie would be great!
     map<vector<int>, int> DistCountsA;
     vector<int> initCount(solutionTree[0].size(), 0);
@@ -302,10 +305,10 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
         if (relax != 0 && n_nodes > maxWidth) {
             if (debug)
                 cout << "Relaxing layer " << layer << endl;
-            // select nodes at random
+            // select nodes at random for merging
             vector<int> to_merge;
             int n_merge = nextDistCounts.size() - maxWidth + 1;
-            if (relax == 1) {
+            if (relax == 1) {// random
                 for (const auto& node : nextDistCounts)
                     to_merge.push_back(node.second);
                 for (int i = 0; i < n_merge; ++i) {
@@ -319,9 +322,9 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
                         cout << i << " ";
                     cout << endl;
                 }
-            } else if (relax == 2) {
+            } else if (relax == 2) { // similar
 
-            } else if (relax == 3) {
+            } else if (relax == 3) { // lower bound based
                 alphap[layer + 1].resize(nextDistCounts.size(), MAX_COST);
                 if (relax == 3) {
                     for (auto itval = DACScope[layer]->begin(); itval != DACScope[layer]->end(); ++itval) {
