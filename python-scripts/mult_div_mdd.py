@@ -9,7 +9,7 @@ Created on Wed Jun 20 11:37:53 2018
 
 from collections import OrderedDict
 import sys
-
+import time
 import argparse
 
 import utils
@@ -31,6 +31,8 @@ parser.add_argument("--nsols", default=1, type=int,
 parser.add_argument("--type", default='smdd',
                     help="method: emdd (one exact mdd for all solutions - default), smdd (one exact mdd per solution) "
                          "or mmdd (one relaxed mdd with all solutions + one exact mdd per solution)")
+parser.add_argument("--relax", default=1, type = int,
+                   help="if type == mmdd, node selection method for relaxation (1=random ; 2=largest alphap)")
 parser.add_argument("--maxwidth", default=None, type=int,
                     help="Maximum layer width in relaxed mdd")
 
@@ -89,8 +91,10 @@ def mdd_dissim(vars_list, sols, name, val_list=None, msim=None, max_width=None):
     cfn["functions"][fname]["params"]["above"] = 1
     cfn["functions"][fname]["params"]["distance"] = args.divmin - 1
     if max_width == None:
+        cfn["functions"][fname]["params"]["relax"] = 0
         cfn["functions"][fname]["params"]["max_width"] = (args.divmin + 1)**(len(sols))  # to keep exact mdd
     else:
+        cfn["functions"][fname]["params"]["relax"] = args.relax
         cfn["functions"][fname]["params"]["max_width"] = max_width
     cfn["functions"][fname]["params"]["labels"] = sols
 
@@ -118,9 +122,10 @@ sols_file = open(sols_filename, 'w')
 tb2log = "tmp.tb2"
 tb2_cmd = toulbar2 + cfn_tmp + ' -s -w="tmp.sol" | tee > ' + tb2log
 sols = []
-
+start_time = time.clock()
 for k in range(args.nsols):
     utils.execute("Looking for solution " + str(k + 1) + " with toulbar2", tb2_cmd)
+    t = time.clock() - start_time
     (opt, sol) = utils.get_optimum(tb2log)
     sols.append(sol)
     # print solution & write it in solution file
@@ -138,6 +143,7 @@ for k in range(args.nsols):
         print(' '.join([str(val) for val in sols[k][:n_vars]]))
         sols_file.write('\n')
     sols_file.write(str(opt) + '\n')
+    sols_file.write(str(t) + " seconds\n")
     if args.type == "emdd":
         if args.cpd:
             mdd_dissim(vars_list,

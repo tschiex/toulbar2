@@ -11,7 +11,7 @@ from collections import OrderedDict
 import sys
 
 import argparse
-
+import time
 import utils
 
 AAs = "ARNDCQEGHILKMFPSTWYV"
@@ -206,11 +206,12 @@ utils.write_cfn(cfn, cfn_tmp)
 sols_file = open(sols_filename, 'w')
 tb2log = "tmp.tb2"
 tb2_cmd = toulbar2 + cfn_tmp + ' -s -w="tmp.sol" | tee > ' + tb2log
-
+start_time=time.clock()
 for k in range(args.nsols):
     utils.execute("Looking for solution " + str(k + 1) + " with toulbar2", tb2_cmd)
     (opt, sol) = utils.get_optimum(tb2log)
     sols = [sol]
+    t = time.clock() - start_time
     if (k > 0 and (args.type == "wregular" or args.type == "compt")):
         sols = [sols[0][:-(k) * (n_vars + 1)]]
     sol_name = "sol" + str(k + 1)
@@ -229,6 +230,7 @@ for k in range(args.nsols):
         print(' '.join([str(val) for val in sols[0][:n_vars]]))
         sols_file.write('\n')
     sols_file.write(str(opt) + '\n')
+    sols_file.write(str(t) + " seconds\n")
     if (k < args.nsols - 1):
         # Add constraint corresponding to the solution
         if args.type == "wregular":
