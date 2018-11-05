@@ -129,7 +129,7 @@ def step_plot(step, params, l, divmin, niter):
     plt.close()
 
 
-# Constant step size
+
 """
 step_plot("cst_stepsize", [0.05, 0.01, 0.005, 0.001], 0, divmin, args.niter)
 step_plot("cst_steplength", [0.05, 0.01, 0.005, 0.001], 0, divmin, args.niter)

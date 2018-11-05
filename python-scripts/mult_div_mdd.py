@@ -15,7 +15,7 @@ import argparse
 import utils
 
 AAs = "ARNDCQEGHILKMFPSTWYV"
-toulbar2 = "/home/tschiex/toulbar2-diverse/build/bin/Linux/toulbar2 "
+toulbar2 = "/home/mruffini/softs/toulbar2-diverse/build/bin/Linux/toulbar2 "
 
 parser = argparse.ArgumentParser()
 
@@ -32,9 +32,12 @@ parser.add_argument("--type", default='smdd',
                     help="method: emdd (one exact mdd for all solutions - default), smdd (one exact mdd per solution) "
                          "or mmdd (one relaxed mdd with all solutions + one exact mdd per solution)")
 parser.add_argument("--relax", default=1, type = int,
-                   help="if type == mmdd, node selection method for relaxation (1=random ; 2=largest alphap)")
+                   help="if type == mmdd, node selection method for relaxation (1=random ; 2=statediv ; 3=largest alphap)")
 parser.add_argument("--maxwidth", default=None, type=int,
                     help="Maximum layer width in relaxed mdd")
+
+parser.add_argument("--lim", default = None, type = int,
+                    help="Time limit for toulbar2 (for each solution) in seconds")
 
 # CPD
 parser.add_argument("--cpd", action="store_true", default=False,
@@ -92,7 +95,7 @@ def mdd_dissim(vars_list, sols, name, val_list=None, msim=None, max_width=None):
     cfn["functions"][fname]["params"]["distance"] = args.divmin - 1
     if max_width == None:
         cfn["functions"][fname]["params"]["relax"] = 0
-        cfn["functions"][fname]["params"]["max_width"] = (args.divmin + 1)**(len(sols))  # to keep exact mdd
+        cfn["functions"][fname]["params"]["max_width"] = 1  # to keep exact mdd
     else:
         cfn["functions"][fname]["params"]["relax"] = args.relax
         cfn["functions"][fname]["params"]["max_width"] = max_width
@@ -119,14 +122,19 @@ else:
 
 utils.write_cfn(cfn, cfn_tmp)
 sols_file = open(sols_filename, 'w')
-tb2log = "tmp.tb2"
-tb2_cmd = toulbar2 + cfn_tmp + ' -s -w="tmp.sol" | tee > ' + tb2log
+path = "/".join(name.split("/")[:-1])
+tb2log = path + "/tmp.tb2"
+time_limit = ""
+if args.lim is not None:
+    time_limit = " -timer=" + str(args.lim) + " "
+tb2_cmd = toulbar2 + cfn_tmp + time_limit + ' -s -w="tmp.sol" | tee > ' + tb2log
 sols = []
-start_time = time.clock()
 for k in range(args.nsols):
     utils.execute("Looking for solution " + str(k + 1) + " with toulbar2", tb2_cmd)
-    t = time.clock() - start_time
-    (opt, sol) = utils.get_optimum(tb2log)
+    (opt, sol, t) = utils.get_optimum(tb2log)
+    print(t)
+    if sol in sols or sol is None:
+        break
     sols.append(sol)
     # print solution & write it in solution file
     sols_file.write("Solution " + str(k + 1) + '\n')

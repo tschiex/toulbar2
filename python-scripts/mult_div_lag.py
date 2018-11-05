@@ -57,7 +57,7 @@ def read_newsol(lag_filename):
     return (xbest, mindiv)
 
 
-python_cmd = "python3 /home/tschiex/toulbar2-diverse/python-scripts/divmin_lagrangian.py"
+python_cmd = "python3 /home/mruffini/softs/toulbar2-diverse/python-scripts/divmin_lagrangian.py"
 
 # Loop
 for k in range(1, args.nsols):

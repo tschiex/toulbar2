@@ -141,7 +141,7 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
     , intDLinkStore(arity_in * 10) // TODO something less naive would be good
     , lb(MIN_COST)
 {
-    static const bool debug{ true };
+    static const bool debug{ false };
 
     Cost weight;
     file >> weight; // violation cost
@@ -244,11 +244,13 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
         Cost toPay = MIN_COST;
 
         for (auto const& nodeState : prevDistCounts) {
-            cout << "nodeState ";
-            for (auto toto : nodeState.first) {
-                cout << toto << " ";
+            if (debug) {
+                cout << "nodeState ";
+                for (auto toto : nodeState.first) {
+                    cout << toto << " ";
+                }
+                cout << endl;
             }
-            cout << endl;
             for (unsigned val = 0; val < DACScope[layer]->getDomainInitSize(); val++) {
                 vector<int> nextCount(solutionTree[layer + 1].size(), -1);
                 for (int nodeid = 0; nodeid < solutionTree[layer + 1].size(); nodeid++) {
@@ -322,12 +324,38 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
                         cout << i << " ";
                     cout << endl;
                 }
+<<<<<<< HEAD
             } else if (relax == 2) { // similar
 
             } else if (relax == 3) { // lower bound based
+=======
+            } else if (relax == 2) {
+                to_merge.resize(nextDistCounts.size()); //assuming nodes are continuously numbered from 0 to size-1
+                iota(to_merge.begin(), to_merge.end(), 0);
+                // Compute state sizes, for each node in nextDistCounts (state size = sum_j(div_j))
+                vector<int> stateDiv(nextDistCounts.size());
+                for (const auto& node : nextDistCounts) {
+                    stateDiv[node.second] = accumulate(node.first.begin(), node.first.end(), 0);
+                }
+                auto comparator = [stateDiv, boundByAbove](int a, int b) { return (boundByAbove == 0) ? stateDiv[a] > stateDiv[b] : stateDiv[a] < stateDiv[b]; };
+                std::sort(to_merge.begin(), to_merge.end(), comparator);
+                to_merge.resize(n_merge);
+                if (debug) {
+                    cout << "stateDiv[" << layer << "]=( ";
+                    for (int i : stateDiv)
+                        cout << i << " ";
+                    cout << ")" << endl;
+                    cout << "Merging nodes ";
+                    for (int i : to_merge)
+                        cout << i << " ";
+                    cout << endl;
+                }
+            } else if (relax == 3) {
+>>>>>>> [code] python scripts mdd
                 alphap[layer + 1].resize(nextDistCounts.size(), MAX_COST);
-                if (relax == 3) {
-                    for (auto itval = DACScope[layer]->begin(); itval != DACScope[layer]->end(); ++itval) {
+                if (relax == 3) { // Not working for now: unary costs might not be charged when the constraint is created
+                    for (auto itval = x->begin(); itval != x->end(); ++itval) {
+                        cout << "un cost " << x->getName() << ", " << x->getValueName(x->toValue(*itval)) << " = " << x->getCost(x->toValue(*itval)) << endl;
                         for (auto arc : arcsAtLayerValue[layer][*itval]) {
                             if (alphap[layer + 1][allArcs[layer][arc].get_target()] > alphap[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + x->getCost(x->toValue(*itval))) {
                                 alphap[layer + 1][allArcs[layer][arc].get_target()] = alphap[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + x->getCost(x->toValue(*itval));
@@ -357,11 +385,13 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
             }
             vector<int> newCount(solutionTree[layer + 1].size(), -1);
             for (int node : to_merge) {
-                cout << "node " << node << "(" << newCount.size() << ")" << endl;
+                if (debug)
+                    cout << "node " << node << "(" << newCount.size() << ")" << endl;
                 auto state = std::find_if(nextDistCounts.begin(), nextDistCounts.end(), [node](const pair<vector<int>, int>& mo) { return mo.second == node; });
                 assert(state != nextDistCounts.end());
                 for (int nodeid = 0; nodeid < solutionTree[layer + 1].size(); nodeid++) {
-                    cout << "nodeid " << nodeid << endl;
+                    if (debug)
+                        cout << "nodeid " << nodeid << endl;
                     if (newCount[nodeid] == -1) {
                         newCount[nodeid] = state->first[nodeid];
                     } else {
@@ -412,12 +442,19 @@ WRegular::WRegular(WCSP* wcsp, EnumeratedVariable** scope_in, int arity_in, istr
             alphap[layer + 1].resize(1, MAX_COST);
         }
         if (relax == 3) {
-            for (auto itval = DACScope[layer]->begin(); itval != DACScope[layer]->end(); ++itval) {
+            for (auto itval = x->begin(); itval != x->end(); ++itval) {
+                cout << "un cost " << x->getName() << ", " << x->getValueName(x->toValue(*itval)) << " = " << x->getCost(x->toValue(*itval)) << endl;
                 for (auto arc : arcsAtLayerValue[layer][*itval]) {
                     if (alphap[layer + 1][allArcs[layer][arc].get_target()] > alphap[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + DACScope[layer]->getCost(DACScope[layer]->toValue(*itval))) {
                         alphap[layer + 1][allArcs[layer][arc].get_target()] = alphap[layer][allArcs[layer][arc].get_source()] + allArcs[layer][arc].get_weight() + DACScope[layer]->getCost(DACScope[layer]->toValue(*itval));
                     }
                 }
+            }
+            if (debug) {
+                cout << "alphap[" << layer + 1 << "]=( ";
+                for (int i : alphap[layer + 1])
+                    cout << i << " ";
+                cout << ")" << endl;
             }
         }
 

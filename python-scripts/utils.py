@@ -163,15 +163,16 @@ def get_optimum(tb2log):
     lines = open(tb2log).readlines()
     for i in range(len(lines)):
         if "New solution:" in lines[i]:
-            seq = re.split(' ', lines[i + 1])[1:]
+            j = i + 1
+            while lines[j][0] == 'c':
+                j += 1
+            seq = re.split(' ', lines[j])[1:]
             for pos in range(len(seq)):
                 seq[pos] = int(seq[pos])
         if "Optimum:" in lines[i]:
             s = re.split(' ', lines[i])
-            return (float(s[1]), seq)
-    return (None, None)
-
-
+            return (float(s[1]), seq, float(s[-2]))
+    return (None, None, None)
 
     """
 def msim_to_mdissim(msim):

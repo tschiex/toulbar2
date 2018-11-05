@@ -9,18 +9,18 @@ Created on Wed Jun 20 11:37:53 2018
 
 from collections import OrderedDict
 import sys
-
+import os
 import argparse
 import time
 import utils
 
 AAs = "ARNDCQEGHILKMFPSTWYV"
-toulbar2 = "/home/tschiex/toulbar2-diverse/build/bin/Linux/toulbar2 "
+toulbar2 = "../build/bin/Linux/toulbar2 " # Script called from python-scripts
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument("-i", "--input", required=True,
-                    help="The input file to process (.cfn.gz)", metavar="FILE")
+                    help="The input file to process (.cfn.gz) [with path]", metavar="FILE")
 parser.add_argument("-o", "--output", default=None,
                     help="The name of the output file where the solutions are written")
 parser.add_argument("--divmin", default=1, type=int,
@@ -29,7 +29,9 @@ parser.add_argument("--divmin", default=1, type=int,
 parser.add_argument("--nsols", default=1, type=int,
                     help="Number of diverse good solutions to compute")
 parser.add_argument("--type", default='wregular',
-                    help="Implementation of regular constraint (wregular (default), compt, sregular or sregulardp")
+                    help="Implementation of regular constraint (wregular (default), compt, compt-bin, sregular or sregulardp")
+parser.add_argument("--lim", default=None, type=int,
+                    help="Time limit for toulbar2 (for each solution) in seconds")
 
 # CPD
 parser.add_argument("--cpd", action="store_true", default=False,
@@ -83,8 +85,11 @@ def add_wreg_dissim(vars_list, sol, sol_name, val_list=None, msim=None):
     var = vars_list[0]
     domain = utils.get_domain(var, cfn)
     for val_index in range(len(domain)):
-        val = domain[val_index]
-        delta = min(utils.dissim(val, sol[0], val_list, msim), args.divmin)
+        if args.cpd:
+            val = domain[val_index]
+            delta = min(utils.dissim(val, sol[0], val_list, msim), args.divmin)
+        else:
+            delta = min(utils.dissim(val_index, sol[0], val_list, msim), args.divmin)
         cfn['functions'][fname]['params']['transitions'].append([0, val_index, (delta * n_vars + 1), 0.0])
 
     for d in range(args.divmin):  # line in the diversity counting automaton
@@ -92,8 +97,12 @@ def add_wreg_dissim(vars_list, sol, sol_name, val_list=None, msim=None):
             var = vars_list[pos]
             domain = utils.get_domain(var, cfn)
             for val_index in range(len(domain)):
-                val = domain[val_index]
-                delta = utils.dissim(val, sol[pos], val_list, msim)
+                if args.cpd:
+                    val = domain[val_index]
+                    delta = utils.dissim(val, sol[pos], val_list, msim)
+                else:
+                    delta = utils.dissim(val_index, sol[pos], val_list, msim)
+                # print(delta)
                 current_state = d * n_vars + pos
                 next_state = (min(d + delta, args.divmin)) * n_vars + pos + 1
                 cfn['functions'][fname]['params']['transitions'].append([current_state, val_index, next_state, 0.0])
@@ -116,20 +125,84 @@ def counting_dissim(vars_list, sol, sol_name, val_list=None,
     cfn['variables'][q + '-1'] = 1
     for i in range(n_vars):
         var = vars_list[i]
-        soli = sol[i]
+        domain = utils.get_domain(var, cfn)
         qi = q + str(i)
+        cfn['variables'][qi] = args.divmin + 1
         qip = q + str(i - 1)
         fi = 'f' + qi
         cfn['functions'][fi] = OrderedDict()
         cfn['functions'][fi]['scope'] = [qip, var, qi]
         cfn['functions'][fi]['defaultcost'] = float(cfn['problem']['mustbe'][1:])
         cfn['functions'][fi]['costs'] = []
-        for qip_val in utils.get_domain(qip, cfn):
-            for val in utils.get_domain(var, cfn):
-                delta = utils.dissim(val, soli, val_list, msim)
+        for qip_val in range(len(utils.get_domain(qip, cfn))):
+            for val_index in range(len(domain)):
+                if args.cpd:
+                    val = domain[val_index]
+                    delta = utils.dissim(val, sol[i], val_list, msim)
+                    #print(f'val: {val}, sol {sol[i]}, delta {delta}')
+                else:
+                    delta = utils.dissim(val_index, sol[i], val_list, msim)
                 qi_val = min(qip_val + delta, args.divmin)
-                cfn['functions'][fi]['costs'] += [qip_val, val, qi_val, 0]
+                cfn['functions'][fi]['costs'] += [qip_val, val_index, qi_val, 0]
+    # Adding unary cost on Qn
+    cfn['functions']['unary_' + qi] = OrderedDict()
+    cfn['functions']['unary_' + qi]['scope'] = [qi]
+    cfn['functions']['unary_' + qi]['costs'] = []
+    for j in range(args.divmin):
+        cfn['functions']['unary_' + qi]['costs'].append(float(cfn['problem']['mustbe'][1:]))
+    cfn['functions']['unary_' + qi]['costs'].append(0)
+
+
+def counting_bin_dissim(vars_list, sol, sol_name, val_list=None, msim=None):
+    n_vars = len(vars_list)
+    q = 'q_' + sol_name + '_'
+    cfn['variables'][q + '-1'] = 1
+    c = 'c_' + sol_name + '_'
+    max_dissim = 1
+    if msim is not None:
+        max_dissim = max([max(l) for l in msim])
+    for i in range(n_vars):
+        var = vars_list[i]
+        domain = utils.get_domain(var, cfn)
+        qi = q + str(i)
         cfn['variables'][qi] = args.divmin + 1
+        qip = q + str(i - 1)
+        ci = c + str(i)
+        cfn['variables'][ci] = (max_dissim + 1) * (args.divmin + 1)
+        fca = f'f_{ci}_{var}'
+        cfn['functions'][fca] = OrderedDict()
+        cfn['functions'][fca]['scope'] = [ci, var]
+        cfn['functions'][fca]['defaultcost'] = float(cfn['problem']['mustbe'][1:])
+        cfn['functions'][fca]['costs'] = []
+        fcqi = f'f_{ci}_{qi}'
+        cfn['functions'][fcqi] = OrderedDict()
+        cfn['functions'][fcqi]['scope'] = [ci, qi]
+        cfn['functions'][fcqi]['defaultcost'] = float(cfn['problem']['mustbe'][1:])
+        cfn['functions'][fcqi]['costs'] = []
+        fcqip = f'f_{ci}_{qip}'
+        cfn['functions'][fcqip] = OrderedDict()
+        cfn['functions'][fcqip]['scope'] = [ci, qip]
+        cfn['functions'][fcqip]['defaultcost'] = float(cfn['problem']['mustbe'][1:])
+        cfn['functions'][fcqip]['costs'] = []
+        delta_seen = []
+        for val_index in range(len(domain)):
+            if args.cpd:
+                val = domain[val_index]
+                delta = utils.dissim(val, sol[i], val_list, msim)
+                # print(f'val: {val}, sol {sol[i]}, delta {delta}')
+            else:
+                delta = utils.dissim(val_index, sol[i], val_list, msim)
+            qip_add = False
+            if delta not in delta_seen:
+                qip_add = True
+                delta_seen.append(delta)
+            for qip_val in range(len(utils.get_domain(qip, cfn))):
+                qi_val = min(qip_val + delta, args.divmin)
+                ci_val = delta * (args.divmin + 1) + qip_val
+                cfn['functions'][fca]['costs'] += [ci_val, val_index, 0]
+                if qip_add:
+                    cfn['functions'][fcqi]['costs'] += [ci_val, qi_val, 0]
+                    cfn['functions'][fcqip]['costs'] += [ci_val, qip_val, 0]
     # Adding unary cost on Qn
     cfn['functions']['unary_' + qi] = OrderedDict()
     cfn['functions']['unary_' + qi]['scope'] = [qi]
@@ -159,17 +232,17 @@ def add_sreg_dissim(vars_list, sol, sol_name, type_string, val_list, msim):
     var = vars_list[0]
     domain = utils.get_domain(var, cfn)
     for val_index in range(len(domain)):
-        val = domain[val_index]
-        delta = min(utils.dissim(val, sol[0], val_list, msim), args.divmin)
+        # val = domain[val_index]
+        delta = min(utils.dissim(val_index, sol[0], val_list, msim), args.divmin)
         cfn['functions'][fname]['params']['transitions'].append([0, val_index, (delta * n_vars + 1)])
 
     for d in range(args.divmin):  # line in the diversity counting automaton
-        for pos in range(1, n_vars):
-            var = vars_list[pos]
+        for var in vars_list:
+            pos = list(cfn['variables'].keys()).index(var)
             domain = utils.get_domain(var, cfn)
             for val_index in range(len(domain)):
-                val = domain[val_index]
-                delta = utils.dissim(val, sol[pos], val_list, msim)
+                # val = domain[val_index]
+                delta = utils.dissim(val_index, sol[pos], val_list, msim)
                 current_state = d * n_vars + pos
                 next_state = (min(d + delta, args.divmin)) * n_vars + pos + 1
                 cfn['functions'][fname]['params']['transitions'].append([current_state, val_index, next_state])
@@ -204,30 +277,32 @@ else:
 
 utils.write_cfn(cfn, cfn_tmp)
 sols_file = open(sols_filename, 'w')
-tb2log = "tmp.tb2"
-tb2_cmd = toulbar2 + cfn_tmp + ' -s -w="tmp.sol" | tee > ' + tb2log
-start_time=time.clock()
+path = "/".join(name.split("/")[:-1])
+tb2log = path + "/tmp.tb2"
+time_limit = ""
+if args.lim is not None:
+    time_limit = " -timer=" + str(args.lim) + " "
+tb2_cmd = toulbar2 + cfn_tmp + time_limit + ' -s | tee > ' + tb2log
+all_sols = []
+
 for k in range(args.nsols):
     utils.execute("Looking for solution " + str(k + 1) + " with toulbar2", tb2_cmd)
-    (opt, sol) = utils.get_optimum(tb2log)
-    sols = [sol]
-    t = time.clock() - start_time
-    if (k > 0 and (args.type == "wregular" or args.type == "compt")):
-        sols = [sols[0][:-(k) * (n_vars + 1)]]
+    (opt, sol, t) = utils.get_optimum(tb2log)
+    print(t)
+    if sol is None or sol[:n_vars] in all_sols:
+        break
+    sols = [sol[:n_vars]]
+    all_sols.append(sol[:n_vars])
     sol_name = "sol" + str(k + 1)
     # print solution and add it to the solution file
     sols_file.write("Solution " + str(k + 1) + '\n')
-    if (not args.cpd):
-        sols_file.write(' '.join([str(val) for val in sols[0]]))
-        print(' '.join([str(val) for val in sols[0]]))
-        sols_file.write('\n')
-    else:
-        sols_file.write(' '.join([str(val) for val in sols[0]]))
-        print(' '.join([str(val) for val in sols[0]]))
-        sols_file.write('\n')
+    sols_file.write(' '.join([str(val) for val in sols[0]]))
+    print(' '.join([str(val) for val in sols[0]]))
+    sols_file.write('\n')
+    if args.cpd:
         utils.sols_to_cpd_sols(sols, cfn)
-        sols_file.write(' '.join([str(val) for val in sols[0][:n_vars]]))
-        print(' '.join([str(val) for val in sols[0][:n_vars]]))
+        sols_file.write(' '.join([str(val) for val in sols[0]]))
+        print(' '.join([str(val) for val in sols[0]]))
         sols_file.write('\n')
     sols_file.write(str(opt) + '\n')
     sols_file.write(str(t) + " seconds\n")
@@ -237,13 +312,15 @@ for k in range(args.nsols):
             add_wreg_dissim(vars_list, sols[0], sol_name, val_list, msim)
         elif args.type == "compt":
             counting_dissim(vars_list, sols[0], sol_name, val_list, msim)
+        elif args.type == "compt-bin":
+            counting_bin_dissim(vars_list, sols[0], sol_name, val_list, msim)
         elif args.type == "sregular":
             add_sreg_dissim(vars_list, sols[0], sol_name, 'sregular', val_list, msim)
         elif args.type == "sregulardp":
             add_sreg_dissim(vars_list, sols[0], sol_name, 'sregulardp', val_list, msim)
         else:
-            print("--regular must be wregular, compt, sregular or sregulardp")
+            print("--regular must be wregular, compt, compt-bin, sregular or sregulardp")
             sys.exit()
-    utils.write_cfn(cfn, cfn_tmp)
+        utils.write_cfn(cfn, cfn_tmp)
 
 sols_file.close()
